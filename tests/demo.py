@@ -53,5 +53,10 @@ with sync_playwright() as p:
     page.set_viewport_size({'width': 390, 'height': 844})
     page.wait_for_function("document.querySelector('.unified-inbox-panel').getBoundingClientRect().width <= 390")
     page.locator('.unified-inbox-panel').screenshot(path=str(output / 'demo-mobile.png'))
+    before = page.url
+    page.locator('.unified-inbox-read').first.click()
+    page.wait_for_function("document.querySelectorAll('.unified-inbox-item').length === 2")
+    assert page.url == before
+    assert page.locator('.unified-inbox-panel .alert-success').inner_text() == 'Correo marcado como leído.'
     browser.close()
-    print('OK: demo screenshots contain synthetic metadata only')
+    print('OK: synthetic screenshots and mark-read button; no navigation or real-mail changes')

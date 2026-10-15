@@ -54,6 +54,22 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 10));
     assert.equal(panel.busy(), false);
     console.log('OK: partial failures, progressive merge, sorting and account filter');
 
+    let marked;
+    responses = (action, params) => { marked=params; return {ok:true}; };
+    const secondary = panel.items().find(row=>row.account === 'c');
+    await panel.mark(secondary);
+    assert.equal(marked.email, 'c');
+    assert.equal(panel.items().length, 1);
+    assert.equal(panel.active, 'a');
+    assert.equal(panel.accounts().find(a=>a.email==='c').status(), '0 · Lista');
+    assert.equal(panel.notice(), 'Correo marcado como leído.');
+    responses = () => {throw new Error('offline');};
+    await panel.mark(panel.items()[0]);
+    assert.equal(panel.items().length, 1);
+    assert.ok(panel.error());
+    assert.equal(panel.marking(), false);
+    console.log('OK: mark read removes only the confirmed row; failure preserves the row and active account');
+
     let release;
     responses = action => action === 'UnifiedInboxList'
         ? {ok:true,active:'a',accounts:['a'],options:{days:14,limit:50}}

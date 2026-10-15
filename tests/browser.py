@@ -77,6 +77,32 @@ with sync_playwright() as playwright:
             check(page.locator('.seguimiento-launch').count() == 1, 'plugin Seguimiento conservado')
         context = rpc(page, 'UnifiedInboxList')['result']
         check(context['ok'] and len(context['accounts']) >= 2, 'cuentas vinculadas disponibles')
+        if '--mark-read-only' in sys.argv:
+            check(page.evaluate("document.getElementById('PopupsUnifiedInbox')?.content.querySelectorAll('.unified-inbox-read').length === 1"),
+                  'plantilla publicada incluye el botón de marcar leído')
+            secondary_password = subprocess.check_output(
+                ['pass', 'show', os.environ['UNIFIED_INBOX_SECONDARY_PASS_ENTRY']], text=True).splitlines()[0].strip()
+            accounts = [(MAIN, password, IMAP_HOST),
+                        (os.environ['UNIFIED_INBOX_SECONDARY_EMAIL'], secondary_password,
+                         os.environ.get('UNIFIED_INBOX_SECONDARY_IMAP_HOST', IMAP_HOST))]
+            for email, secret, host in accounts:
+                mail = imaplib.IMAP4_SSL(host, timeout=20)
+                try:
+                    mail.login(email, secret)
+                    sample = read_sample(mail)
+                    check(sample is not None, 'mensaje ya leído disponible para una prueba idempotente')
+                    unread_before = mail.uid('search', None, 'UNSEEN')[1][0]
+                    result = rpc(page, 'UnifiedInboxMarkRead', dict(sample, email=email))['result']
+                    check(result['ok'] and result['uid'] == sample['uid'], 'servidor confirma marcar leído en la cuenta solicitada')
+                    flags = mail.uid('fetch', str(sample['uid']), '(FLAGS)')[1]
+                    check(any(isinstance(row, bytes) and b'\\Seen' in row for row in flags), 'IMAP confirma el estado leído')
+                    unread_after = mail.uid('search', None, 'UNSEEN')[1][0]
+                    check(unread_before == unread_after, 'pendientes no leídos conservados durante la prueba')
+                finally:
+                    mail.logout()
+            check(rpc(page, 'UnifiedInboxList')['result']['active'] == context['active'], 'marcar leído no cambia la cuenta activa')
+            check(not errors, 'sin errores JavaScript')
+            sys.exit(0)
         rejected = rpc(page, 'UnifiedInboxAccount', {'email': 'outsider@example.invalid'})['result']
         check(not rejected['ok'] and 'items' not in rejected, 'rechaza cuentas ajenas')
         guest = browser.new_page()

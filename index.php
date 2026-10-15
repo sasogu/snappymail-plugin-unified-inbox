@@ -7,7 +7,7 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
 {
     public const NAME = 'Unified Inbox';
     public const AUTHOR = 'Samuel Soriano';
-    public const VERSION = '0.1.4';
+    public const VERSION = '0.2.0';
     public const RELEASE = '2026-10-15';
     public const REQUIRED = '2.38.2';
     public const LICENSE = 'AGPL-3.0';
@@ -22,6 +22,7 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
         $this->addJsonHook('UnifiedInboxList', 'ListAccounts');
         $this->addJsonHook('UnifiedInboxAccount', 'AccountItems');
         $this->addJsonHook('UnifiedInboxLocate', 'Locate');
+        $this->addJsonHook('UnifiedInboxMarkRead', 'MarkRead');
         $this->addJsonHook('UnifiedInboxInvalidate', 'Invalidate');
         $this->addHook('imap.before-connect', 'LimitTimeout');
     }
@@ -164,35 +165,63 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
         });
     }
 
+    private function resolveUid($client, bool $write = false): int
+    {
+        $uid = max(0, (int)$this->jsonParam('uid', 0));
+        $validity = (int)$this->jsonParam('uidvalidity', 0);
+        $messageId = (string)$this->jsonParam('message_id', '');
+        if (strlen($messageId) > 998 || preg_match('/[\r\n\x00]/', $messageId)) throw new \RuntimeException('Invalid identifier');
+        $folder = $write ? $client->FolderSelect('INBOX') : $client->FolderExamine('INBOX');
+        if ($write && !$folder->IsWritable) throw new \RuntimeException('Read-only mailbox');
+        if ($uid > 0 && $validity > 0 && $folder->UIDVALIDITY === $validity) {
+            $rows = $client->Fetch(['UID', 'ENVELOPE'], (string)$uid, true);
+            foreach ($rows as $row) {
+                if ((int)$row->GetFetchValue('UID') === $uid &&
+                    (!$messageId || $row->GetFetchEnvelopeValue(9, '') === $messageId)) return $uid;
+            }
+        }
+        if ($messageId !== '') {
+            $matches = $client->MessageSearch('HEADER Message-ID ' . $client->EscapeString($messageId));
+            if (count($matches) === 1) {
+                $rows = $client->Fetch(['UID', 'ENVELOPE'], (string)$matches[0], true);
+                if (count($rows) === 1 && $rows[0]->GetFetchEnvelopeValue(9, '') === $messageId) return (int)$matches[0];
+            }
+        }
+        throw new \RuntimeException('Message moved, deleted or ambiguous');
+    }
+
     public function Locate()
     {
         return $this->result(__FUNCTION__, function () {
             [$actions, $main, $active, $account] = $this->account();
             if ($active->Email() !== $account->Email()) throw new \RuntimeException('Switch required');
-            $uid = max(0, (int)$this->jsonParam('uid', 0));
-            $validity = (int)$this->jsonParam('uidvalidity', 0);
-            $messageId = (string)$this->jsonParam('message_id', '');
-            if (strlen($messageId) > 998 || preg_match('/[\r\n\x00]/', $messageId)) throw new \RuntimeException('Invalid identifier');
-            $located = $this->imap($account, function ($client) use ($uid, $validity, $messageId) {
-                $folder = $client->FolderExamine('INBOX');
-                if ($uid > 0 && $validity > 0 && $folder->UIDVALIDITY === $validity) {
-                    $rows = $client->Fetch(['UID', 'ENVELOPE'], (string)$uid, true);
-                    foreach ($rows as $row) {
-                        if ((int)$row->GetFetchValue('UID') === $uid &&
-                            (!$messageId || $row->GetFetchEnvelopeValue(9, '') === $messageId)) return $uid;
-                    }
-                }
-                if ($messageId !== '') {
-                    $matches = $client->MessageSearch('HEADER Message-ID ' . $client->EscapeString($messageId));
-                    if (count($matches) === 1) {
-                        $rows = $client->Fetch(['UID', 'ENVELOPE'], (string)$matches[0], true);
-                        if (count($rows) === 1 && $rows[0]->GetFetchEnvelopeValue(9, '') === $messageId) return (int)$matches[0];
-                    }
-                }
-                throw new \RuntimeException('Message moved, deleted or ambiguous');
-            });
+            $located = $this->imap($account, fn($client) => $this->resolveUid($client));
             $this->cache($main)->delete($this->key($account));
             return ['folder' => 'INBOX', 'uid' => $located];
         });
     }
+
+    public function MarkRead()
+    {
+        return $this->result(__FUNCTION__, function () {
+            [$actions, $main, $active, $account] = $this->account();
+            $cache = $this->cache($main);
+            // Invalidate before mutation too: a lost response must not preserve stale metadata.
+            $cache->delete($this->key($account));
+            $uid = $this->imap($account, function ($client) {
+                $uid = $this->resolveUid($client, true);
+                $client->MessageStoreFlag(new \MailSo\Imap\SequenceSet([$uid], true),
+                    ['\\Seen'], \MailSo\Imap\Enumerations\StoreAction::ADD_FLAGS_SILENT);
+                $rows = $client->Fetch(['UID', 'FLAGS'], (string)$uid, true);
+                foreach ($rows as $row) {
+                    if ((int)$row->GetFetchValue('UID') === $uid &&
+                        in_array('\\seen', array_map('strtolower', $row->GetFetchValue('FLAGS') ?: []), true)) return $uid;
+                }
+                throw new \RuntimeException('Read flag not confirmed');
+            });
+            $cache->delete($this->key($account));
+            return ['uid' => $uid];
+        });
+    }
+
 }

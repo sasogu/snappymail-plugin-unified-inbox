@@ -10,7 +10,9 @@
             openError: 'No se pudo abrir el correo. Puede haberse movido o eliminado. Actualiza la bandeja.',
             empty: 'No hay mensajes en esta vista.', subject: '(Sin asunto)', cached: 'En caché',
             limits: 'Últimos {days} días · hasta {limit} mensajes por cuenta · solo INBOX',
-            ready: 'Lista', more: 'Hay más mensajes que el límite mostrado.', opening: 'Abriendo correo…'
+            ready: 'Lista', more: 'Hay más mensajes que el límite mostrado.', opening: 'Abriendo correo…',
+            markRead: 'Marcar como leído', marking: 'Marcando como leído…', marked: 'Correo marcado como leído.',
+            markError: 'No se pudo marcar como leído. Actualiza la bandeja y vuelve a intentarlo.'
         },
         en: {
             title: 'Unified inbox', subtitle: 'Recent unread messages from all your accounts',
@@ -19,7 +21,9 @@
             openError: 'Could not open the message. It may have moved or been deleted. Refresh the inbox.',
             empty: 'No messages in this view.', subject: '(No subject)', cached: 'Cached',
             limits: 'Last {days} days · up to {limit} messages per account · INBOX only',
-            ready: 'Ready', more: 'There are more messages than the display limit.', opening: 'Opening message…'
+            ready: 'Ready', more: 'There are more messages than the display limit.', opening: 'Opening message…',
+            markRead: 'Mark as read', marking: 'Marking as read…', marked: 'Message marked as read.',
+            markError: 'Could not mark as read. Refresh the inbox and try again.'
         },
         ca: {
             title: 'Safata conjunta', subtitle: 'No llegits recents de tots els teus comptes',
@@ -28,7 +32,9 @@
             openError: 'No s’ha pogut obrir el correu. Pot haver-se mogut o eliminat. Actualitza la safata.',
             empty: 'No hi ha missatges en aquesta vista.', subject: '(Sense assumpte)', cached: 'En memòria cau',
             limits: 'Últims {days} dies · fins a {limit} missatges per compte · només INBOX',
-            ready: 'Preparat', more: 'Hi ha més missatges que el límit mostrat.', opening: 'Obrint correu…'
+            ready: 'Preparat', more: 'Hi ha més missatges que el límit mostrat.', opening: 'Obrint correu…',
+            markRead: 'Marcar com a llegit', marking: 'Marcant com a llegit…', marked: 'Correu marcat com a llegit.',
+            markError: 'No s’ha pogut marcar com a llegit. Actualitza la safata i torna-ho a provar.'
         }
     };
     const lang = () => String(rl.settings.get('clientLanguage') || document.documentElement.lang || 'en').slice(0, 2);
@@ -56,7 +62,8 @@
     class UnifiedInboxPopup extends rl.pluginPopupView {
         constructor() {
             super('UnifiedInbox');
-            this.addObservables({ accounts: [], items: [], filter: '', busy: false, opening: false, error: '', limits: '' });
+            this.addObservables({ accounts: [], items: [], filter: '', busy: false, opening: false,
+                marking: false, notice: '', error: '', limits: '' });
             this.t = t;
             this.date = date;
             this.color = color;
@@ -69,14 +76,16 @@
                 .concat(this.accounts().map(account => ({email: account.email, label: account.email}))));
             this.refresh = () => this.load(true);
             this.openItem = item => this.open(item);
+            this.markRead = item => this.mark(item);
         }
 
         beforeShow() { this.filter(''); this.load(false); }
         onHide() { ++this.generation; this.busy(false); }
 
         async load(force) {
+            if (this.marking()) return;
             const generation = ++this.generation;
-            this.busy(true); this.error(''); this.items([]); this.accounts([]);
+            this.busy(true); this.error(''); this.notice(''); this.items([]); this.accounts([]);
             try {
                 const result = await rpc('UnifiedInboxList');
                 if (generation !== this.generation) return;
@@ -112,8 +121,28 @@
             }
         }
 
+        async mark(item) {
+            if (this.marking() || this.opening()) return;
+            this.marking(true); this.error(''); this.notice('');
+            const generation = this.generation;
+            try {
+                await rpc('UnifiedInboxMarkRead', {email: item.account, uid: item.uid,
+                    uidvalidity: item.uidvalidity, message_id: item.message_id});
+                if (generation !== this.generation) return;
+                this.items(this.items().filter(row => row !== item));
+                const account = this.accounts().find(row => row.email === item.account);
+                if (account) account.status(`${this.items().filter(row => row.account === item.account).length} · ${t('ready')}`);
+                this.notice(t('marked'));
+            } catch (error) {
+                if (generation === this.generation) this.error(t('markError'));
+            } finally {
+                this.marking(false);
+                if (generation !== this.generation && this.modalVisible?.()) this.load(true);
+            }
+        }
+
         async open(item) {
-            if (this.opening()) return;
+            if (this.opening() || this.marking()) return;
             ++this.generation;
             this.busy(false);
             this.opening(true); this.error('');

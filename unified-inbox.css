@@ -16,6 +16,9 @@
 .unified-inbox-item:disabled { cursor: wait; }
 .unified-inbox-meta { justify-content: space-between; font-size: .85em; }
 .unified-inbox-subject, .unified-inbox-sender { display: block; margin-top: 5px; }
+.unified-inbox-open { display: block; width: 100%; border: 0; padding: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.unified-inbox-open:disabled { cursor: wait; }
+.unified-inbox-read { margin-top: 10px; }
 @media (max-width: 600px) {
     .unified-inbox-panel .modal-body { padding: 12px; }
     .unified-inbox-account { display: grid; }

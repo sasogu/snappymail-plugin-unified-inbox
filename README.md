@@ -12,6 +12,11 @@ press **Refresh** to bypass the metadata cache. Connection errors are shown per
 account without hiding results from the others. Click a message to switch to
 its account and open SnappyMail's normal viewer.
 
+Use **Mark as read** below a message to mark it in its own account without opening
+it or switching accounts. The row disappears and its displayed account count
+updates only after the server confirms the read flag. On error the row stays
+visible; refresh and retry. This action synchronizes with other IMAP clients.
+
 Defaults: last 14 days, up to 50 messages per account, 180-second cache. These
 limits are visible in the panel; this is not an exhaustive view of all mail or
 all unread messages. The per-account cap takes the highest UIDs (most recently
@@ -78,6 +83,8 @@ must have INBOX messages already marked read and the webmail UI must use Spanish
 Set `UNIFIED_INBOX_CHECK_SEGUIMIENTO=1` to also verify the existing Seguimiento
 sidebar button on installations that have that plugin. The observed validation
 and its limits are recorded in [docs/VERIFICATION.md](docs/VERIFICATION.md).
+Use `python3 tests/browser.py --mark-read-only` for the focused read-flag test;
+it uses messages already read, preserving existing unread messages.
 
 ## Español
 
@@ -85,6 +92,10 @@ and its limits are recorded in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 recientes de INBOX de la cuenta principal y sus cuentas adicionales, con carga
 progresiva, filtro por cuenta y errores independientes. **Actualizar** consulta
 los servidores aunque exista caché. Al pulsar un mensaje se abre en su cuenta.
+
+Cada mensaje incluye **Marcar como leído**: actúa en su propia cuenta sin abrir
+el correo ni cambiar de cuenta. Tras confirmarlo el servidor, desaparece de la
+lista y se actualiza el contador. Si falla, permanece visible para reintentar.
 
 Por defecto muestra los últimos **14 días**, hasta **50 mensajes por cuenta**,
 con una caché de **3 minutos**. Los límites se indican en el panel. Consultar la

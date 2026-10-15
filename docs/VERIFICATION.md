@@ -1,5 +1,21 @@
 # Verification — 2026-10-15, version 0.1.4
 
+## Mark as read — version 0.2.0
+
+- PHP tests verify that a linked inactive account can mark only the resolved UID
+  using `+FLAGS.SILENT (\Seen)`, without switching accounts. Stale mailbox
+  generations, unlinked accounts, anonymous sessions and read-only mailboxes are
+  rejected; successful marking invalidates the cached unread list.
+- JavaScript tests verify confirmed removal, account count update, error recovery
+  and preservation of the row on failure. Synthetic browser tests exercise the
+  actual button and confirm that it does not navigate.
+- Real API/IMAP integration uses already-read messages in the main and an
+  additional account. The server confirms `\Seen`, the active account stays the
+  same and unread UID sets remain unchanged. Run the local integration wrapper
+  with `--mark-read-only` to repeat this focused, idempotent check.
+
+## Initial release
+
 Target: SnappyMail 2.38.2, PHP in the pinned deployment container, existing
 Seguimiento and account-login mapping plugins enabled.
 

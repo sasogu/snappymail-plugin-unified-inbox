@@ -24,12 +24,27 @@ namespace MailSo\Base {
     }
 }
 namespace MailSo\Imap {
+    class SequenceSet {
+        public function __construct(public array $uids, public bool $UID) {}
+    }
     class ImapClient {
         public static array $rows = [];
         public static array $matches = [];
         public static array $operations = [];
         public static int $disconnects = 0;
         public static bool $fail = false;
+        public static array $writes = [];
+        public static bool $writable = true;
+        public function FolderSelect($folder) {
+            self::$operations[] = 'SELECT';
+            return (object)['UIDVALIDITY' => 7, 'IsWritable' => self::$writable];
+        }
+        public function MessageStoreFlag($range, $flags, $action) {
+            self::$writes[] = [$range->uids, $range->UID, $flags, $action];
+            foreach (self::$rows as $row) {
+                if (in_array($row->uid, $range->uids, true)) $row->flags[] = '\\Seen';
+            }
+        }
         public function FolderExamine($folder) {
             self::$operations[] = 'EXAMINE';
             if (self::$fail) throw new \RuntimeException('offline');
@@ -43,6 +58,9 @@ namespace MailSo\Imap {
         public function EscapeString($value) { return '"' . addcslashes($value, '"\\') . '"'; }
         public function Disconnect() { ++self::$disconnects; }
     }
+}
+namespace MailSo\Imap\Enumerations {
+    class StoreAction { public const ADD_FLAGS_SILENT = '+FLAGS.SILENT'; }
 }
 namespace {
     class Account {
@@ -102,6 +120,25 @@ namespace {
         check(!$plugin->Locate()['ok'], 'missing identifier cannot reuse an old UID');
         $plugin->params['email'] = 'second@example.invalid';
         check(!$plugin->Locate()['ok'], 'opening requires matching active account');
+        $plugin->params = ['email' => 'second@example.invalid', 'uid' => 3, 'uidvalidity' => 7, 'message_id' => '<a>'];
+        check(count($plugin->AccountItems()['items']) === 1, 'inactive account cache prepared');
+        check($plugin->MarkRead()['ok'], 'mark read works in a linked inactive account');
+        check(\MailSo\Imap\ImapClient::$writes === [[[3], true, ['\\Seen'], '+FLAGS.SILENT']], 'only the verified UID receives the read flag');
+        check($plugin->actions->active === 'main@example.invalid', 'mark read does not switch the active account');
+        $afterMark = $plugin->AccountItems();
+        check(!$afterMark['cached'] && !$afterMark['items'], 'mark read invalidates cached unread metadata');
+        $plugin->params['uidvalidity'] = 8;
+        $plugin->params['message_id'] = '';
+        check(!$plugin->MarkRead()['ok'] && count(\MailSo\Imap\ImapClient::$writes) === 1, 'stale generation never writes flags');
+        $plugin->params['uidvalidity'] = 7;
+        \MailSo\Imap\ImapClient::$writable = false;
+        check(!$plugin->MarkRead()['ok'] && count(\MailSo\Imap\ImapClient::$writes) === 1, 'read-only mailbox never writes flags');
+        \MailSo\Imap\ImapClient::$writable = true;
+        $plugin->params['email'] = 'outsider@example.invalid';
+        check(!$plugin->MarkRead()['ok'] && count(\MailSo\Imap\ImapClient::$writes) === 1, 'unlinked account cannot write flags');
+        $plugin->actions->loggedIn = false;
+        check(!$plugin->MarkRead()['ok'], 'anonymous mark read rejected');
+        $plugin->actions->loggedIn = true;
         $plugin->params = ['email' => 'main@example.invalid', 'force' => 1];
         \MailSo\Imap\ImapClient::$fail = true;
         $before = \MailSo\Imap\ImapClient::$disconnects;
