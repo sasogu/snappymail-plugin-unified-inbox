@@ -58,5 +58,19 @@ with sync_playwright() as p:
     page.wait_for_function("document.querySelectorAll('.unified-inbox-item').length === 2")
     assert page.url == before
     assert page.locator('.unified-inbox-panel .alert-success').inner_text() == 'Correo marcado como leído.'
+    page.once('dialog', lambda dialog: dialog.dismiss())
+    page.locator('.unified-inbox-read-all').click()
+    assert page.locator('.unified-inbox-item').count() == 2
+    page.locator('.unified-inbox-controls select').select_option('school@example.invalid')
+    page.once('dialog', lambda dialog: dialog.accept())
+    page.locator('.unified-inbox-read-all').click()
+    page.wait_for_function("document.querySelectorAll('.unified-inbox-item').length === 0")
+    page.locator('.unified-inbox-controls select').select_option('')
+    assert page.locator('.unified-inbox-item').count() == 1
+    page.once('dialog', lambda dialog: dialog.accept())
+    page.locator('.unified-inbox-read-all').click()
+    page.wait_for_function("document.querySelectorAll('.unified-inbox-item').length === 0")
+    assert page.locator('.unified-inbox-read-all').is_disabled()
+    assert page.url == before
     browser.close()
-    print('OK: synthetic screenshots and mark-read button; no navigation or real-mail changes')
+    print('OK: synthetic screenshots, individual/bulk read, cancellation and account filter; no real-mail changes')

@@ -1,5 +1,17 @@
 # Verification — 2026-10-15, version 0.1.4
 
+## Mark all as read — version 0.3.0
+
+- JavaScript tests cover cancellation without writes, account-filter scope,
+  partial failures, retry across accounts and closing during a batch. The batch
+  uses the existing authorized, identity-checked per-message endpoint with at
+  most two concurrent requests. Failed rows remain visible.
+- Chromium tests with synthetic data cover the actual bulk button, dismissal of
+  its confirmation, accepting a filtered batch, accepting the remaining all-account
+  batch and disabling the button on an empty view. No real unread messages are
+  changed by these tests. Desktop/mobile demo screenshots were regenerated.
+- Existing PHP cache/backend tests and JavaScript syntax checks pass.
+
 ## Mark as read — version 0.2.0
 
 - PHP tests verify that a linked inactive account can mark only the resolved UID

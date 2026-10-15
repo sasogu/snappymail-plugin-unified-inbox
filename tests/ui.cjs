@@ -18,7 +18,7 @@ class BasePopup {
     static showModal() { this.__vm = new this(); this.__vm.beforeShow(); }
 }
 const context = {
-    window: { rl: true }, ko: { computed: fn => fn, observable },
+    window: { rl: true, confirm: () => false }, ko: { computed: fn => fn, observable },
     rl: {
         adminArea: () => false, settings: { get: () => 'es' }, pluginPopupView: BasePopup,
         pluginRemoteRequest(callback, action, params) {
@@ -69,6 +69,50 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 10));
     assert.ok(panel.error());
     assert.equal(panel.marking(), false);
     console.log('OK: mark read removes only the confirmed row; failure preserves the row and active account');
+
+    const first = {account:'a',date:3,uid:1}, second = {account:'a',date:2,uid:2}, other = {account:'c',date:1,uid:3};
+    panel.items([first, second, other]); panel.filter('a');
+    const writes = [];
+    responses = (action, params) => {
+        writes.push(params);
+        if (params.uid === 2) throw new Error('offline');
+        return {ok:true};
+    };
+    await panel.markAll();
+    assert.equal(writes.length, 0);
+    assert.equal(panel.items().length, 3);
+    let confirmation;
+    context.window.confirm = text => {confirmation=text;return true;};
+    await panel.markAll();
+    assert.ok(confirmation.includes('2') && confirmation.includes('«a»'));
+    assert.equal(writes.length, 2);
+    assert.ok(writes.every(row=>row.email === 'a'));
+    assert.equal(panel.items().length, 2);
+    assert.ok(panel.items().includes(second) && panel.items().includes(other));
+    assert.equal(panel.notice(), 'Marcados como leídos: 1. Sin marcar: 1.');
+    assert.ok(panel.error());
+    assert.equal(panel.active, 'a');
+    assert.equal(panel.marking(), false);
+    panel.filter('');
+    responses = () => ({ok:true});
+    await panel.markAll();
+    assert.equal(panel.items().length, 0);
+    assert.equal(panel.notice(), 'Marcados como leídos: 2. Sin marcar: 0.');
+    assert.equal(panel.error(), '');
+    console.log('OK: bulk cancellation, filter scope, partial failures and retry across accounts');
+
+    panel.items([first, second, other]);
+    const pending = [];
+    responses = () => new Promise(resolve => pending.push(resolve));
+    const bulk = panel.markAll();
+    await wait();
+    assert.equal(pending.length, 2);
+    panel.onHide();
+    pending.forEach(resolve=>resolve({ok:true}));
+    await bulk;
+    assert.equal(pending.length, 2);
+    assert.equal(panel.marking(), false);
+    console.log('OK: closing during bulk work stops scheduling further messages');
 
     let release;
     responses = action => action === 'UnifiedInboxList'

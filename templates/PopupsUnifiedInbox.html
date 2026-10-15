@@ -9,8 +9,9 @@
         <p class="alert alert-error" role="alert" data-bind="visible: error, text: error"></p>
         <p class="alert alert-success" role="status" data-bind="visible: notice, text: notice"></p>
         <div class="unified-inbox-controls">
-            <select data-bind="options: filterOptions, optionsText: 'label', optionsValue: 'email', value: filter, attr: {'aria-label': t('all')}"></select>
+            <select data-bind="options: filterOptions, optionsText: 'label', optionsValue: 'email', value: filter, disable: marking() || opening(), attr: {'aria-label': t('all')}"></select>
             <button type="button" class="btn" data-bind="click: refresh, disable: busy() || opening() || marking(), text: t('refresh')"></button>
+            <button type="button" class="btn unified-inbox-read-all" data-bind="click: markAllRead, disable: busy() || opening() || marking() || !visibleItems().length, text: t('markAll')"></button>
             <span role="status" data-bind="visible: busy, text: t('loading')"></span>
             <span role="status" data-bind="visible: opening, text: t('opening')"></span>
             <span role="status" data-bind="visible: marking, text: t('marking')"></span>

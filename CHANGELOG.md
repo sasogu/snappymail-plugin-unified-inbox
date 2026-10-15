@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 — 2026-10-15
+
+- Add **Mark all as read** for the currently visible messages, respecting the
+  account filter and the displayed date/count limits. Confirm the scope and count
+  before starting, show progress and report partial failures without removing
+  failed messages. Closing the panel stops scheduling further messages; requests
+  already in flight finish normally.
+
 ## 0.2.0 — 2026-10-15
 
 - Add a per-message **Mark as read** button, without switching accounts or opening

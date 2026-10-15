@@ -12,7 +12,11 @@
             limits: 'Últimos {days} días · hasta {limit} mensajes por cuenta · solo INBOX',
             ready: 'Lista', more: 'Hay más mensajes que el límite mostrado.', opening: 'Abriendo correo…',
             markRead: 'Marcar como leído', marking: 'Marcando como leído…', marked: 'Correo marcado como leído.',
-            markError: 'No se pudo marcar como leído. Actualiza la bandeja y vuelve a intentarlo.'
+            markError: 'No se pudo marcar como leído. Actualiza la bandeja y vuelve a intentarlo.',
+            markAll: 'Marcar todo como leído',
+            confirmAll: '¿Marcar como leídos los {count} mensajes visibles de «{scope}»? Solo se incluyen los mensajes de esta vista.',
+            bulkProgress: 'Procesados {done} de {total}…',
+            bulkDone: 'Marcados como leídos: {success}. Sin marcar: {failed}.'
         },
         en: {
             title: 'Unified inbox', subtitle: 'Recent unread messages from all your accounts',
@@ -23,7 +27,11 @@
             limits: 'Last {days} days · up to {limit} messages per account · INBOX only',
             ready: 'Ready', more: 'There are more messages than the display limit.', opening: 'Opening message…',
             markRead: 'Mark as read', marking: 'Marking as read…', marked: 'Message marked as read.',
-            markError: 'Could not mark as read. Refresh the inbox and try again.'
+            markError: 'Could not mark as read. Refresh the inbox and try again.',
+            markAll: 'Mark all as read',
+            confirmAll: 'Mark the {count} visible messages in “{scope}” as read? Only messages in this view are included.',
+            bulkProgress: 'Processed {done} of {total}…',
+            bulkDone: 'Marked as read: {success}. Not marked: {failed}.'
         },
         ca: {
             title: 'Safata conjunta', subtitle: 'No llegits recents de tots els teus comptes',
@@ -34,7 +42,11 @@
             limits: 'Últims {days} dies · fins a {limit} missatges per compte · només INBOX',
             ready: 'Preparat', more: 'Hi ha més missatges que el límit mostrat.', opening: 'Obrint correu…',
             markRead: 'Marcar com a llegit', marking: 'Marcant com a llegit…', marked: 'Correu marcat com a llegit.',
-            markError: 'No s’ha pogut marcar com a llegit. Actualitza la safata i torna-ho a provar.'
+            markError: 'No s’ha pogut marcar com a llegit. Actualitza la safata i torna-ho a provar.',
+            markAll: 'Marcar-ho tot com a llegit',
+            confirmAll: 'Vols marcar com a llegits els {count} missatges visibles de «{scope}»? Només s’inclouen els missatges d’aquesta vista.',
+            bulkProgress: 'Processats {done} de {total}…',
+            bulkDone: 'Marcats com a llegits: {success}. Sense marcar: {failed}.'
         }
     };
     const lang = () => String(rl.settings.get('clientLanguage') || document.documentElement.lang || 'en').slice(0, 2);
@@ -77,6 +89,7 @@
             this.refresh = () => this.load(true);
             this.openItem = item => this.open(item);
             this.markRead = item => this.mark(item);
+            this.markAllRead = () => this.markAll();
         }
 
         beforeShow() { this.filter(''); this.load(false); }
@@ -121,17 +134,51 @@
             }
         }
 
+        async applyRead(item, generation) {
+            await rpc('UnifiedInboxMarkRead', {email: item.account, uid: item.uid,
+                uidvalidity: item.uidvalidity, message_id: item.message_id});
+            if (generation !== this.generation) return;
+            this.items(this.items().filter(row => row !== item));
+            const account = this.accounts().find(row => row.email === item.account);
+            if (account) account.status(`${this.items().filter(row => row.account === item.account).length} · ${t('ready')}`);
+        }
+
+        async markAll() {
+            if (this.marking() || this.opening() || this.busy()) return;
+            const items = this.visibleItems().slice();
+            if (!items.length || !window.confirm(t('confirmAll')
+                .replace('{count}', items.length).replace('{scope}', this.filter() || t('all')))) return;
+            const generation = this.generation;
+            let next = 0, success = 0, failed = 0;
+            this.marking(true); this.error(''); this.notice('');
+            const worker = async () => {
+                while (next < items.length && generation === this.generation) {
+                    const item = items[next++];
+                    try { await this.applyRead(item, generation); ++success; }
+                    catch (error) { ++failed; }
+                    if (generation === this.generation) this.notice(t('bulkProgress')
+                        .replace('{done}', success + failed).replace('{total}', items.length));
+                }
+            };
+            try {
+                await Promise.all([worker(), worker()]);
+                if (generation === this.generation) {
+                    this.notice(t('bulkDone').replace('{success}', success).replace('{failed}', failed));
+                    if (failed) this.error(t('markError'));
+                }
+            } finally {
+                this.marking(false);
+                if (generation !== this.generation && this.modalVisible?.()) this.load(true);
+            }
+        }
+
         async mark(item) {
             if (this.marking() || this.opening()) return;
             this.marking(true); this.error(''); this.notice('');
             const generation = this.generation;
             try {
-                await rpc('UnifiedInboxMarkRead', {email: item.account, uid: item.uid,
-                    uidvalidity: item.uidvalidity, message_id: item.message_id});
+                await this.applyRead(item, generation);
                 if (generation !== this.generation) return;
-                this.items(this.items().filter(row => row !== item));
-                const account = this.accounts().find(row => row.email === item.account);
-                if (account) account.status(`${this.items().filter(row => row.account === item.account).length} · ${t('ready')}`);
                 this.notice(t('marked'));
             } catch (error) {
                 if (generation === this.generation) this.error(t('markError'));

@@ -17,6 +17,13 @@ it or switching accounts. The row disappears and its displayed account count
 updates only after the server confirms the read flag. On error the row stays
 visible; refresh and retry. This action synchronizes with other IMAP clients.
 
+**Mark all as read** applies to the current visible list and respects the account
+filter and date/count limits. A confirmation states the account scope and message
+count. Progress and the final success/failure counts appear in the panel; failed
+messages stay visible. Closing the panel stops scheduling further messages;
+requests already in flight can still complete. Messages outside the current view
+are not included. The button is disabled while loading or when the view is empty.
+
 Defaults: last 14 days, up to 50 messages per account, 180-second cache. These
 limits are visible in the panel; this is not an exhaustive view of all mail or
 all unread messages. The per-account cap takes the highest UIDs (most recently
@@ -96,6 +103,12 @@ los servidores aunque exista caché. Al pulsar un mensaje se abre en su cuenta.
 Cada mensaje incluye **Marcar como leído**: actúa en su propia cuenta sin abrir
 el correo ni cambiar de cuenta. Tras confirmarlo el servidor, desaparece de la
 lista y se actualiza el contador. Si falla, permanece visible para reintentar.
+
+**Marcar todo como leído** actúa sobre los mensajes visibles y respeta el filtro
+de cuenta y los límites de fecha y cantidad. Antes de empezar pide confirmación
+con el número de mensajes y la cuenta seleccionada. Muestra el progreso y conserva
+los mensajes que no se puedan marcar. Al cerrar el panel se dejan de iniciar
+operaciones nuevas; las que ya estén en curso pueden terminar.
 
 Por defecto muestra los últimos **14 días**, hasta **50 mensajes por cuenta**,
 con una caché de **3 minutos**. Los límites se indican en el panel. Consultar la
