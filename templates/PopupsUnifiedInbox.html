@@ -1,0 +1,42 @@
+<div class="unified-inbox-panel">
+    <div class="modal-header">
+        <button type="button" class="close" data-bind="click: close, attr: {'aria-label': t('close')}">×</button>
+        <h2 data-bind="text: t('title')"></h2>
+        <p data-bind="text: t('subtitle')"></p>
+    </div>
+    <div class="modal-body">
+        <p class="unified-inbox-limits" data-bind="text: limits"></p>
+        <p class="alert alert-error" role="alert" data-bind="visible: error, text: error"></p>
+        <div class="unified-inbox-controls">
+            <select data-bind="options: filterOptions, optionsText: 'label', optionsValue: 'email', value: filter, attr: {'aria-label': t('all')}"></select>
+            <button type="button" class="btn" data-bind="click: refresh, disable: busy() || opening(), text: t('refresh')"></button>
+            <span role="status" data-bind="visible: busy, text: t('loading')"></span>
+            <span role="status" data-bind="visible: opening, text: t('opening')"></span>
+        </div>
+        <details class="unified-inbox-status" open>
+            <summary data-bind="text: t('all')"></summary>
+            <div data-bind="foreach: accounts">
+                <div class="unified-inbox-account" data-bind="css: {'unified-inbox-failed': failed}">
+                    <strong data-bind="text: email, style: {borderColor: $root.color(email)}"></strong>
+                    <span data-bind="text: status"></span>
+                    <time data-bind="text: updated"></time>
+                    <span data-bind="visible: truncated, text: $root.t('more')"></span>
+                </div>
+            </div>
+        </details>
+        <p data-bind="visible: !visibleItems().length &amp;&amp; !busy(), text: t('empty')"></p>
+        <div class="unified-inbox-items" data-bind="foreach: visibleItems">
+            <button type="button" class="unified-inbox-item" data-bind="click: $root.openItem, disable: $root.opening()">
+                <span class="unified-inbox-meta">
+                    <strong data-bind="text: account, style: {borderColor: $root.color(account)}"></strong>
+                    <time data-bind="text: $root.date(date)"></time>
+                </span>
+                <strong class="unified-inbox-subject" data-bind="text: subject || $root.t('subject')"></strong>
+                <span class="unified-inbox-sender" data-bind="text: sender"></span>
+            </button>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn" data-bind="click: close, text: t('close')"></button>
+    </div>
+</div>

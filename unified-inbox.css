@@ -1,0 +1,23 @@
+.unified-inbox-launch { display: block; margin: 10px auto; width: calc(100% - 24px); }
+#V-PopupsUnifiedInbox { width: 900px; max-width: calc(100vw - 20px); box-sizing: border-box; min-width: 0; }
+.unified-inbox-panel { text-align: left; width: 100%; box-sizing: border-box; }
+.unified-inbox-panel .modal-body { max-height: 70vh; overflow: auto; }
+.unified-inbox-panel p { margin: 8px 0; }
+.unified-inbox-controls, .unified-inbox-meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.unified-inbox-controls select { max-width: 100%; }
+.unified-inbox-limits, .unified-inbox-sender, .unified-inbox-account time { opacity: .8; }
+.unified-inbox-status { margin: 16px 0; }
+.unified-inbox-account { display: flex; gap: 8px; flex-wrap: wrap; margin: 7px 0; overflow-wrap: anywhere; }
+.unified-inbox-account strong, .unified-inbox-meta strong { border-left: 4px solid; padding-left: 7px; }
+.unified-inbox-failed { color: #bb3535; }
+.unified-inbox-items { display: grid; gap: 8px; }
+.unified-inbox-item { display: block; width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #8886; border-radius: 6px; background: transparent; color: inherit; text-align: left; cursor: pointer; font: inherit; overflow-wrap: anywhere; }
+.unified-inbox-item:hover, .unified-inbox-item:focus-visible { background: #8882; }
+.unified-inbox-item:disabled { cursor: wait; }
+.unified-inbox-meta { justify-content: space-between; font-size: .85em; }
+.unified-inbox-subject, .unified-inbox-sender { display: block; margin-top: 5px; }
+@media (max-width: 600px) {
+    .unified-inbox-panel .modal-body { padding: 12px; }
+    .unified-inbox-account { display: grid; }
+    .unified-inbox-meta { display: grid; }
+}
