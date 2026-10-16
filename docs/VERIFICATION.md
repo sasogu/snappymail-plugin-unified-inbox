@@ -1,5 +1,15 @@
 # Verification — 2026-10-15, version 0.1.4
 
+## Selected interface language — version 0.4.1
+
+- Unit and synthetic browser tests verify that the selected UI language overrides
+  a different browser preference and that the actual launcher text binding and
+  popup headings update through Spanish → Catalan → Spanish.
+- A fresh authenticated session with an English browser and saved Catalan UI
+  preference loads Catalan native strings, Seguiment and Safata conjunta. The
+  Seguiment popup and its refresh button also display Catalan. No preference is
+  changed and no message is opened or modified.
+
 ## Account selection — version 0.4.0, 2026-10-16
 
 - PHP tests cover the default selection, main-account exclusion, empty selection,

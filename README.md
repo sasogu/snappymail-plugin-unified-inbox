@@ -72,6 +72,10 @@ another invalidation after 15 seconds. Other clients' changes can remain visible
 until refresh or cache expiry. Opening a message during loading stops scheduling
 the remaining accounts; reopen or refresh the panel to resume the full view.
 
+The plugin follows the interface language selected in SnappyMail rather than the
+browser language preference. It supports Spanish, English and Catalan, including
+regional variants, and updates its launcher/panel labels after language changes.
+
 No SMTP calls, notifications, telemetry or new authentication system.
 
 ### Development

@@ -11,6 +11,7 @@ const observable = initial => {
 };
 let Popup;
 let responses;
+let languageChanged;
 class BasePopup {
     constructor() { Popup = this.constructor; }
     addObservables(values) { for (const [key, value] of Object.entries(values)) this[key] = observable(value); }
@@ -18,9 +19,9 @@ class BasePopup {
     static showModal() { this.__vm = new this(); this.__vm.beforeShow(); }
 }
 const context = {
-    window: { rl: true, confirm: () => false }, ko: { computed: fn => fn, observable },
+    window: { rl: true, MutationObserver: class { constructor(callback) {languageChanged=callback;} observe() {} }, confirm: () => false }, ko: { computed: fn => fn, observable },
     rl: {
-        adminArea: () => false, settings: { get: () => 'es' }, pluginPopupView: BasePopup,
+        adminArea: () => false, settings: { get: key => key === 'clientLanguage' ? 'en' : 'es' }, pluginPopupView: BasePopup,
         pluginRemoteRequest(callback, action, params) {
             Promise.resolve().then(() => responses(action, params))
                 .then(result => callback(0, {Result: result}), () => callback(1));
@@ -46,6 +47,14 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 10));
     view.openUnifiedInbox();
     await wait();
     const panel = Popup.__vm;
+    assert.equal(panel.t('title'),'Bandeja conjunta');
+    assert.equal(view.unifiedInboxLabel(),'Bandeja conjunta');
+    context.document.documentElement.lang='ca-ES'; languageChanged();
+    assert.equal(panel.t('title'),'Safata conjunta');
+    assert.equal(view.unifiedInboxLabel(),'Safata conjunta');
+    context.document.documentElement.lang='es'; languageChanged();
+    assert.equal(panel.t('title'),'Bandeja conjunta');
+    console.log('OK: selected UI language overrides browser preference and changes reactively');
     assert.equal(panel.accounts().filter(a=>a.failed()).length, 1);
     assert.equal(panel.items().length, 2);
     assert.equal(panel.visibleItems()[0].account, 'c');

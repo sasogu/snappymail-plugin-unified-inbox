@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 — 2026-10-16
+
+- Follow SnappyMail's selected interface language instead of the browser's
+  preferred language, avoiding mixed languages between the webmail and plugins.
+- Update the launcher and panel labels when the interface language changes.
+- Verify different browser/interface preferences and live ES/CA switching with
+  SnappyMail's actual Knockout text binding.
+
 ## 0.4.0 — 2026-10-16
 
 - Add **Included accounts** with checkboxes and a saved per-user selection.

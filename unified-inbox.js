@@ -61,7 +61,15 @@
             bulkDone: 'Marcats com a llegits: {success}. Sense marcar: {failed}.'
         }
     };
-    const lang = () => String(rl.settings.get('clientLanguage') || document.documentElement.lang || 'en').slice(0, 2);
+    // clientLanguage is the browser preference, not SnappyMail's selected language.
+    const readLanguage = () => String(document.documentElement.lang || rl.settings.get('language') || 'en')
+        .toLowerCase().split(/[-_]/)[0];
+    const language = ko.observable(readLanguage());
+    const lang = () => language();
+    if (window.MutationObserver) {
+        new window.MutationObserver(() => language(readLanguage())).observe(document.documentElement,
+            {attributes: true, attributeFilter: ['lang']});
+    }
     const t = key => (strings[lang()] || strings.en)[key];
     // SnappyMail tracks timeouts by action, shared by concurrent account requests.
     // Use independent timers so one account cannot cancel another's request.
@@ -262,10 +270,11 @@
         const template = document.getElementById(view.viewModelTemplateID);
         if (!template?.content) return;
         view.openUnifiedInbox = () => UnifiedInboxPopup.showModal();
+        view.unifiedInboxLabel = () => t('title');
         const button = document.createElement('button');
         button.type = 'button'; button.className = 'btn unified-inbox-launch';
         button.textContent = t('title');
-        button.setAttribute('data-bind', 'click: openUnifiedInbox');
+        button.setAttribute('data-bind', 'click: openUnifiedInbox, text: unifiedInboxLabel()');
         template.content.querySelector('.b-content')?.prepend(button);
     });
 

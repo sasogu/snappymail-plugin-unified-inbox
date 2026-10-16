@@ -10,7 +10,7 @@ with sync_playwright() as p:
     page = browser.new_page(viewport={'width': 1280, 'height': 900}, bypass_csp=True)
     page.goto(base, wait_until='networkidle')
     page.wait_for_function("typeof rl?.pluginRemoteRequest === 'function'")
-    page.evaluate("() => rl.settings.set('clientLanguage', 'es')")
+    page.evaluate("() => {rl.settings.set('clientLanguage', 'en'); document.documentElement.lang='es';}")
     page.evaluate('''html => {
         if (!document.getElementById('PopupsUnifiedInbox')) {
             const template=document.createElement('template');
@@ -43,6 +43,12 @@ with sync_playwright() as p:
     page.evaluate('''() => {
         const view = {viewModelTemplateID:'MailFolderList'};
         dispatchEvent(new CustomEvent('rl-view-model.create', {detail:view}));
+        const launcher=document.getElementById('MailFolderList').content.querySelector('.unified-inbox-launch').cloneNode(true);
+        launcher.id='unified-demo-launcher'; launcher.style.display='none'; document.body.append(launcher);
+        const expression=launcher.getAttribute('data-bind').split('text: ')[1];
+        ko.applyBindingAccessorsToNode(launcher, {
+            text:()=>new Function('unifiedInboxLabel','return ('+expression+')')(view.unifiedInboxLabel)
+        },view);
         view.openUnifiedInbox();
     }''')
     try:
@@ -53,6 +59,12 @@ with sync_playwright() as p:
             return {panel:!!p,accounts:v?.accounts()?.length,items:v?.items()?.length,error:v?.error(),busy:v?.busy(),visible:v?.visibleItems()?.length,filter:v?.filter(),buttons:document.querySelectorAll('.unified-inbox-item').length};
         }'''))
         raise
+    assert page.locator('#unified-demo-launcher').text_content() == 'Bandeja conjunta'
+    page.evaluate("() => {document.documentElement.lang='ca';}")
+    page.get_by_role('heading',name='Safata conjunta',exact=True).wait_for()
+    assert page.locator('#unified-demo-launcher').text_content() == 'Safata conjunta'
+    page.evaluate("() => {document.documentElement.lang='es';}")
+    page.get_by_role('heading',name='Bandeja conjunta',exact=True).wait_for()
     output = Path(__file__).resolve().parents[1] / 'docs'
     output.mkdir(exist_ok=True)
     page.locator('.unified-inbox-panel').screenshot(path=str(output / 'demo-desktop.png'))
