@@ -4,6 +4,9 @@ SnappyMail plugin showing recent **unread INBOX messages** from the main account
 and its configured additional accounts. No core modifications. AGPL-3.0.
 Developed against SnappyMail **2.38.2**; compatibility with other versions is unverified.
 
+For per-message review dates, waiting-for-reply status and notes, see the separate
+[Seguimiento plugin](https://github.com/sasogu/snappymail-plugin-seguimiento).
+
 ## English
 
 Open **Unified inbox** in the folder sidebar. Accounts load independently (two
