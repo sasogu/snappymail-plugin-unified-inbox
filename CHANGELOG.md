@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — 2026-10-16
+
+- Add **Included accounts** with checkboxes and a saved per-user selection.
+  Preferences follow the main account across linked-account switches and devices.
+  Excluded inboxes are not queried or included in bulk actions. Support excluding
+  the main account or all accounts; newly linked accounts are included by default.
+  All accounts remain included until the user saves a selection.
+
 ## 0.3.0 — 2026-10-15
 
 - Add **Mark all as read** for the currently visible messages, respecting the

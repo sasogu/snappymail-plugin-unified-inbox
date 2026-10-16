@@ -114,6 +114,67 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 10));
     assert.equal(panel.marking(), false);
     console.log('OK: closing during bulk work stops scheduling further messages');
 
+    let selected = ['b'], failSave = false;
+    const queried = [];
+    responses = (action, params) => {
+        if (action === 'UnifiedInboxList') return {ok:true,active:'a',accounts:['a','b','c'],selected,options:{days:14,limit:50}};
+        if (action === 'UnifiedInboxSaveAccounts') {
+            if (failSave) throw new Error('offline');
+            selected = JSON.parse(params.selected);
+            return {ok:true};
+        }
+        queried.push(params.email);
+        return {ok:true,items:[{account:params.email,date:1,uid:1}],total:1,updated:1};
+    };
+    await panel.load(false);
+    assert.deepEqual(queried, ['b']);
+    assert.equal(panel.availableAccounts().length, 3);
+    assert.equal(panel.accounts().length, 1);
+    panel.availableAccounts().forEach(row => row.selected(row.email === 'c'));
+    panel.filter('b');
+    await panel.saveAccounts();
+    assert.equal(JSON.stringify(selected), '["c"]');
+    assert.equal(panel.filter(), '');
+    assert.equal(panel.items()[0].account, 'c');
+    assert.equal(queried.includes('a'), false);
+    failSave = true;
+    panel.availableAccounts()[0].selected(true);
+    await panel.saveAccounts();
+    assert.equal(panel.items()[0].account, 'c');
+    assert.ok(panel.error());
+    assert.equal(panel.saving(), false);
+    failSave = false;
+    panel.availableAccounts().forEach(row => row.selected(false));
+    await panel.saveAccounts();
+    assert.equal(panel.accounts().length, 0);
+    assert.equal(panel.items().length, 0);
+    await panel.load(false);
+    assert.equal(panel.accounts().length, 0);
+    assert.equal(queried.length, 2);
+    console.log('OK: selection persistence, excluded accounts never queried, empty selection and save failure');
+
+    let finishSave;
+    let reloaded = false;
+    responses = action => {
+        if (action === 'UnifiedInboxSaveAccounts') return new Promise(resolve => {finishSave = resolve;});
+        if (action === 'UnifiedInboxList') {
+            reloaded = true;
+            return {ok:true,active:'a',accounts:['a'],selected:[],options:{days:14,limit:50}};
+        }
+    };
+    const saving = panel.saveAccounts();
+    await wait();
+    panel.onHide();
+    panel.modalVisible = () => true;
+    panel.beforeShow();
+    finishSave({ok:true});
+    await saving;
+    await wait();
+    assert.equal(reloaded, true);
+    assert.equal(panel.accounts().length, 0);
+    panel.modalVisible = () => false;
+    console.log('OK: reopening during a pending save reloads the confirmed selection');
+
     let release;
     responses = action => action === 'UnifiedInboxList'
         ? {ok:true,active:'a',accounts:['a'],options:{days:14,limit:50}}

@@ -7,8 +7,8 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
 {
     public const NAME = 'Unified Inbox';
     public const AUTHOR = 'Samuel Soriano';
-    public const VERSION = '0.3.0';
-    public const RELEASE = '2026-10-15';
+    public const VERSION = '0.4.0';
+    public const RELEASE = '2026-10-16';
     public const REQUIRED = '2.38.2';
     public const LICENSE = 'AGPL-3.0';
     public const CATEGORY = 'General';
@@ -20,6 +20,7 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
         $this->addCss('unified-inbox.css');
         $this->addTemplate('templates/PopupsUnifiedInbox.html');
         $this->addJsonHook('UnifiedInboxList', 'ListAccounts');
+        $this->addJsonHook('UnifiedInboxSaveAccounts', 'SaveAccounts');
         $this->addJsonHook('UnifiedInboxAccount', 'AccountItems');
         $this->addJsonHook('UnifiedInboxLocate', 'Locate');
         $this->addJsonHook('UnifiedInboxMarkRead', 'MarkRead');
@@ -114,8 +115,34 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
     {
         return $this->result(__FUNCTION__, function () {
             [$actions, $main, $active, $accounts] = $this->context();
-            return ['accounts' => array_values(array_unique(array_merge([$main->Email()], array_keys($accounts)))),
+            $emails = array_values(array_unique(array_merge([$main->Email()], array_keys($accounts))));
+            $stored = $actions->StorageProvider()->Get($main,
+                \RainLoop\Providers\Storage\Enumerations\StorageType::CONFIG, 'unified_inbox_excluded', '[]');
+            $excluded = json_decode((string)$stored, true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($excluded) || !array_is_list($excluded)) throw new \RuntimeException('Invalid preferences');
+            return ['accounts' => $emails, 'selected' => array_values(array_diff($emails, $excluded)),
                 'active' => $active->Email(), 'options' => $this->options()];
+        });
+    }
+
+    public function SaveAccounts()
+    {
+        return $this->result(__FUNCTION__, function () {
+            [$actions, $main, $active, $accounts] = $this->context();
+            $emails = array_values(array_unique(array_merge([$main->Email()], array_keys($accounts))));
+            $selected = json_decode((string)$this->jsonParam('selected', ''), false, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($selected) || !array_is_list($selected) || count($selected) > count($emails)) {
+                throw new \RuntimeException('Invalid selection');
+            }
+            foreach ($selected as $email) {
+                if (!is_string($email) || !in_array($email, $emails, true)) throw new \RuntimeException('Account unavailable');
+            }
+            // Store only exclusions: newly linked accounts are included by default.
+            $excluded = array_values(array_diff($emails, $selected));
+            if (!$actions->StorageProvider()->Put($main,
+                \RainLoop\Providers\Storage\Enumerations\StorageType::CONFIG, 'unified_inbox_excluded',
+                json_encode($excluded, JSON_THROW_ON_ERROR))) throw new \RuntimeException('Save failed');
+            return [];
         });
     }
 

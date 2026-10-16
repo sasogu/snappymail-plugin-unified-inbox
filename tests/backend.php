@@ -12,6 +12,9 @@ namespace RainLoop\Plugins {
         protected function jsonResponse($method, $data) { return $data; }
     }
 }
+namespace RainLoop\Providers\Storage\Enumerations {
+    class StorageType { public const CONFIG = 1; }
+}
 namespace RainLoop\Model {
     class AdditionalAccount {
         public static function NewInstanceFromTokenArray($actions, $token) { return $token; }
@@ -86,15 +89,53 @@ namespace {
     $plugin = new \UnifiedInboxPlugin;
     $plugin->actions = new class {
         public bool $loggedIn = true;
+        public string $owner = 'main@example.invalid';
+        public array $preferences = [];
+        public bool $addAccount = false;
+        public bool $saveFails = false;
+        public function StorageProvider() { return $this; }
+        public function Get($main, $type, $key, $default) { return $this->preferences[$main->Hash()][$key] ?? $default; }
+        public function Put($main, $type, $key, $value) {
+            if ($this->saveFails) return false;
+            $this->preferences[$main->Hash()][$key] = $value;
+            return true;
+        }
         public string $active = 'main@example.invalid';
-        public function getMainAccountFromToken() { return $this->loggedIn ? new Account('main@example.invalid') : null; }
+        public function getMainAccountFromToken() { return $this->loggedIn ? new Account($this->owner) : null; }
         public function getAccountFromToken() { return $this->loggedIn ? new Account($this->active) : null; }
-        public function GetAccounts($main) { return ['second@example.invalid' => new Account('second@example.invalid')]; }
+        public function GetAccounts($main) { return ['second@example.invalid' => new Account('second@example.invalid')] + ($this->addAccount ? ['new@example.invalid' => new Account('new@example.invalid')] : []); }
         public function Config() { return null; }
     };
     try {
         check(count($plugin->ListAccounts()['accounts']) === 2, 'only linked accounts listed');
+        check($plugin->ListAccounts()['selected'] === $plugin->ListAccounts()['accounts'], 'all accounts included by default');
+        $plugin->params = ['selected' => '["second@example.invalid"]'];
+        check($plugin->SaveAccounts()['ok'], 'save account selection');
+        check($plugin->ListAccounts()['selected'] === ['second@example.invalid'], 'main account can be excluded');
+        $plugin->actions->active = 'second@example.invalid';
+        check($plugin->ListAccounts()['selected'] === ['second@example.invalid'], 'selection follows main account when switching');
+        $plugin->actions->owner = 'other@example.invalid';
+        check(count($plugin->ListAccounts()['selected']) === 2, 'preferences isolated per main user');
+        $plugin->actions->owner = 'main@example.invalid';
+        $plugin->actions->active = 'main@example.invalid';
+        foreach (['["outsider@example.invalid"]', '{}', 'null', 'broken', '[123]', '[["second@example.invalid"]]'] as $invalid) {
+            $plugin->params = ['selected' => $invalid];
+            check(!$plugin->SaveAccounts()['ok'], 'invalid selection rejected');
+        }
+        check($plugin->ListAccounts()['selected'] === ['second@example.invalid'], 'invalid writes preserve selection');
+        $plugin->params = ['selected' => '[]'];
+        $plugin->actions->saveFails = true;
+        check(!$plugin->SaveAccounts()['ok'], 'storage failure reported');
+        $plugin->actions->saveFails = false;
+        check($plugin->SaveAccounts()['ok'] && $plugin->ListAccounts()['selected'] === [], 'empty selection persists');
+        $plugin->actions->addAccount = true;
+        check($plugin->ListAccounts()['selected'] === ['new@example.invalid'], 'newly linked accounts included by default');
+        $plugin->actions->addAccount = false;
+        $plugin->actions->owner = 'main@example.invalid';
+        $plugin->params = ['selected' => json_encode($plugin->ListAccounts()['accounts'])];
+        check($plugin->SaveAccounts()['ok'], 'restore all accounts');
         $plugin->actions->loggedIn = false;
+        check(!$plugin->SaveAccounts()['ok'], 'anonymous preferences write rejected');
         check(!$plugin->ListAccounts()['ok'], 'unauthenticated access rejected');
         $plugin->actions->loggedIn = true;
         $plugin->params = ['email' => 'outsider@example.invalid'];

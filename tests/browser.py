@@ -77,6 +77,35 @@ with sync_playwright() as playwright:
             check(page.locator('.seguimiento-launch').count() == 1, 'plugin Seguimiento conservado')
         context = rpc(page, 'UnifiedInboxList')['result']
         check(context['ok'] and len(context['accounts']) >= 2, 'cuentas vinculadas disponibles')
+        if '--selection-only' in sys.argv:
+            import json
+            original = context['selected']
+            try:
+                page.locator('.unified-inbox-launch').click()
+                page.wait_for_function("!ko.dataFor(document.querySelector('.unified-inbox-panel')).busy()", timeout=180000)
+                page.locator('.unified-inbox-selection summary').click()
+                choices = page.locator('.unified-inbox-choice input')
+                for i, email in enumerate(context['accounts']):
+                    choices.nth(i).set_checked(email == MAIN)
+                page.locator('.unified-inbox-save').click()
+                page.wait_for_function("() => {const v=ko.dataFor(document.querySelector('.unified-inbox-panel')); return !v.busy() && !v.saving() && v.accounts().length === 1;}", timeout=90000)
+                check(rpc(page, 'UnifiedInboxList')['result']['selected'] == [MAIN], 'selección guardada mediante casillas')
+                page.reload(wait_until='domcontentloaded')
+                page.locator('.unified-inbox-launch').wait_for()
+                check(rpc(page, 'UnifiedInboxList')['result']['selected'] == [MAIN], 'selección conservada tras recargar')
+                check(not rpc(page, 'AccountSwitch', {'Email': context['accounts'][1]}, core=True)['error'], 'cambio a cuenta adicional')
+                page.reload(wait_until='domcontentloaded')
+                page.locator('.unified-inbox-launch').wait_for()
+                check(rpc(page, 'UnifiedInboxList')['result']['selected'] == [MAIN], 'selección compartida al cambiar de cuenta')
+                check(rpc(page, 'UnifiedInboxSaveAccounts', {'selected':'[]'})['result']['ok'], 'permite excluir todas las cuentas')
+                check(rpc(page, 'UnifiedInboxList')['result']['selected'] == [], 'selección vacía guardada en servidor')
+                check(not rpc(page, 'UnifiedInboxSaveAccounts', {'selected':'["outsider@example.invalid"]'})['result']['ok'], 'cuentas ajenas rechazadas')
+                check(not errors, 'sin errores JavaScript')
+            finally:
+                restored = rpc(page, 'UnifiedInboxSaveAccounts', {'selected':json.dumps(original)})['result']
+                check(restored['ok'], 'selección original restaurada')
+                check(not rpc(page, 'AccountSwitch', {'Email': context['active']}, core=True)['error'], 'cuenta activa original restaurada')
+            sys.exit(0)
         if '--mark-read-only' in sys.argv:
             check(page.evaluate("document.getElementById('PopupsUnifiedInbox')?.content.querySelectorAll('.unified-inbox-read').length === 1"),
                   'plantilla publicada incluye el botón de marcar leído')

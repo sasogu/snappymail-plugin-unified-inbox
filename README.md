@@ -12,6 +12,14 @@ press **Refresh** to bypass the metadata cache. Connection errors are shown per
 account without hiding results from the others. Click a message to switch to
 its account and open SnappyMail's normal viewer.
 
+Open **Included accounts**, check the inboxes you want to combine and press
+**Save selection**. The selection is stored on the server for your main user,
+shared across linked-account switches and devices. Excluded accounts are not
+queried or included in bulk actions. You can exclude the main account or all
+accounts; newly linked accounts are included by default. All accounts are
+included until you save a selection. The account dropdown only filters the
+current list; it does not change the saved selection.
+
 Use **Mark as read** below a message to mark it in its own account without opening
 it or switching accounts. The row disappears and its displayed account count
 updates only after the server confirms the read flag. On error the row stays
@@ -92,6 +100,9 @@ sidebar button on installations that have that plugin. The observed validation
 and its limits are recorded in [docs/VERIFICATION.md](docs/VERIFICATION.md).
 Use `python3 tests/browser.py --mark-read-only` for the focused read-flag test;
 it uses messages already read, preserving existing unread messages.
+Use `python3 tests/browser.py --selection-only` to verify saved account selection,
+reload and account switching. It restores the original selection and active
+account and does not open or mark messages.
 
 ## Español
 
@@ -99,6 +110,13 @@ it uses messages already read, preserving existing unread messages.
 recientes de INBOX de la cuenta principal y sus cuentas adicionales, con carga
 progresiva, filtro por cuenta y errores independientes. **Actualizar** consulta
 los servidores aunque exista caché. Al pulsar un mensaje se abre en su cuenta.
+
+Abre **Cuentas incluidas**, marca las bandejas que quieras reunir y pulsa
+**Guardar selección**. Se guarda para tu usuario principal en el servidor y se
+conserva al cambiar de cuenta o dispositivo. Las cuentas excluidas no se consultan
+ni participan en «Marcar todo como leído». Puedes excluir incluso la principal o
+todas las cuentas; las cuentas nuevas se incluyen por defecto. El desplegable de
+cuentas solo filtra la lista actual y no cambia esta selección.
 
 Cada mensaje incluye **Marcar como leído**: actúa en su propia cuenta sin abrir
 el correo ni cambiar de cuenta. Tras confirmarlo el servidor, desaparece de la
@@ -125,3 +143,5 @@ fuera del código con permisos restrictivos. No publiques su contenido.
 ![Desktop demo — synthetic data](docs/demo-desktop.png)
 
 ![Mobile demo — synthetic data](docs/demo-mobile.png)
+
+![Included accounts — synthetic mobile demo](docs/demo-selection-mobile.png)

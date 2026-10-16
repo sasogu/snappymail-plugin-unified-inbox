@@ -4,7 +4,11 @@
     if (!window.rl || rl.adminArea()) return;
     const strings = {
         es: {
-            title: 'Bandeja conjunta', subtitle: 'No leídos recientes de todas tus cuentas',
+            included: 'Cuentas incluidas', save: 'Guardar selección', saving: 'Guardando…',
+            selectionHelp: 'Elige las cuentas que quieres reunir. Las cuentas nuevas se incluyen por defecto.',
+            selectionEmpty: 'No hay cuentas incluidas. Selecciona alguna en «Cuentas incluidas».',
+            saveError: 'No se pudo guardar la selección. Vuelve a intentarlo.',
+            title: 'Bandeja conjunta', subtitle: 'No leídos recientes de tus cuentas seleccionadas',
             all: 'Todas las cuentas', refresh: 'Actualizar', close: 'Cerrar', loading: 'Consultando…',
             error: 'No se pudo consultar. Comprueba la conexión y vuelve a intentarlo.',
             openError: 'No se pudo abrir el correo. Puede haberse movido o eliminado. Actualiza la bandeja.',
@@ -19,7 +23,11 @@
             bulkDone: 'Marcados como leídos: {success}. Sin marcar: {failed}.'
         },
         en: {
-            title: 'Unified inbox', subtitle: 'Recent unread messages from all your accounts',
+            included: 'Included accounts', save: 'Save selection', saving: 'Saving…',
+            selectionHelp: 'Choose the accounts to include. Newly linked accounts are included by default.',
+            selectionEmpty: 'No accounts included. Select some under “Included accounts”.',
+            saveError: 'Could not save the selection. Please try again.',
+            title: 'Unified inbox', subtitle: 'Recent unread messages from your selected accounts',
             all: 'All accounts', refresh: 'Refresh', close: 'Close', loading: 'Loading…',
             error: 'Could not load. Check your connection and try again.',
             openError: 'Could not open the message. It may have moved or been deleted. Refresh the inbox.',
@@ -34,7 +42,11 @@
             bulkDone: 'Marked as read: {success}. Not marked: {failed}.'
         },
         ca: {
-            title: 'Safata conjunta', subtitle: 'No llegits recents de tots els teus comptes',
+            included: 'Comptes inclosos', save: 'Guardar selecció', saving: 'Guardant…',
+            selectionHelp: 'Tria els comptes que vols reunir. Els comptes nous s’inclouen per defecte.',
+            selectionEmpty: 'No hi ha comptes inclosos. Tria’n algun en «Comptes inclosos».',
+            saveError: 'No s’ha pogut guardar la selecció. Torna-ho a provar.',
+            title: 'Safata conjunta', subtitle: 'No llegits recents dels teus comptes seleccionats',
             all: 'Tots els comptes', refresh: 'Actualitzar', close: 'Tancar', loading: 'Consultant…',
             error: 'No s’ha pogut consultar. Comprova la connexió i torna-ho a provar.',
             openError: 'No s’ha pogut obrir el correu. Pot haver-se mogut o eliminat. Actualitza la safata.',
@@ -75,7 +87,7 @@
         constructor() {
             super('UnifiedInbox');
             this.addObservables({ accounts: [], items: [], filter: '', busy: false, opening: false,
-                marking: false, notice: '', error: '', limits: '' });
+                marking: false, saving: false, availableAccounts: [], notice: '', error: '', limits: '' });
             this.t = t;
             this.date = date;
             this.color = color;
@@ -90,25 +102,49 @@
             this.openItem = item => this.open(item);
             this.markRead = item => this.mark(item);
             this.markAllRead = () => this.markAll();
+            this.saveSelection = () => this.saveAccounts();
         }
 
         beforeShow() { this.filter(''); this.load(false); }
         onHide() { ++this.generation; this.busy(false); }
 
+        async saveAccounts() {
+            if (this.busy() || this.marking() || this.opening() || this.saving()) return;
+            const selected = this.availableAccounts().filter(row => row.selected()).map(row => row.email);
+            const generation = this.generation;
+            this.saving(true); this.error('');
+            try {
+                await rpc('UnifiedInboxSaveAccounts', {selected: JSON.stringify(selected)});
+            } catch (error) {
+                if (generation === this.generation) this.error(t('saveError'));
+                return;
+            } finally {
+                this.saving(false);
+                if (generation !== this.generation && this.modalVisible?.()) this.load(false);
+            }
+            if (generation === this.generation) {
+                this.filter('');
+                await this.load(false);
+            }
+        }
+
         async load(force) {
-            if (this.marking()) return;
+            if (this.marking() || this.saving()) return;
             const generation = ++this.generation;
-            this.busy(true); this.error(''); this.notice(''); this.items([]); this.accounts([]);
+            this.busy(true); this.error(''); this.notice(''); this.items([]); this.accounts([]); this.availableAccounts([]);
             try {
                 const result = await rpc('UnifiedInboxList');
                 if (generation !== this.generation) return;
                 this.active = result.active;
                 this.limits(t('limits').replace('{days}', result.options.days).replace('{limit}', result.options.limit));
-                const accounts = result.accounts.map(email => ({
+                const selected = result.selected || result.accounts;
+                this.availableAccounts(result.accounts.map(email => ({email, selected: ko.observable(selected.includes(email))})));
+                const accounts = result.accounts.filter(email => selected.includes(email)).map(email => ({
                     email, status: ko.observable(t('loading')), failed: ko.observable(false),
                     truncated: ko.observable(false), updated: ko.observable('')
                 }));
                 this.accounts(accounts);
+                if (this.filter() && !accounts.some(row => row.email === this.filter())) this.filter('');
                 let next = 0;
                 const worker = async () => {
                     while (next < accounts.length && generation === this.generation) {
@@ -144,7 +180,7 @@
         }
 
         async markAll() {
-            if (this.marking() || this.opening() || this.busy()) return;
+            if (this.marking() || this.opening() || this.busy() || this.saving()) return;
             const items = this.visibleItems().slice();
             if (!items.length || !window.confirm(t('confirmAll')
                 .replace('{count}', items.length).replace('{scope}', this.filter() || t('all')))) return;
@@ -173,7 +209,7 @@
         }
 
         async mark(item) {
-            if (this.marking() || this.opening()) return;
+            if (this.marking() || this.opening() || this.saving()) return;
             this.marking(true); this.error(''); this.notice('');
             const generation = this.generation;
             try {
@@ -189,7 +225,7 @@
         }
 
         async open(item) {
-            if (this.opening() || this.marking()) return;
+            if (this.opening() || this.marking() || this.saving()) return;
             ++this.generation;
             this.busy(false);
             this.opening(true); this.error('');

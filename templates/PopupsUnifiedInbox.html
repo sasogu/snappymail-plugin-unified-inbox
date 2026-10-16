@@ -9,13 +9,26 @@
         <p class="alert alert-error" role="alert" data-bind="visible: error, text: error"></p>
         <p class="alert alert-success" role="status" data-bind="visible: notice, text: notice"></p>
         <div class="unified-inbox-controls">
-            <select data-bind="options: filterOptions, optionsText: 'label', optionsValue: 'email', value: filter, disable: marking() || opening(), attr: {'aria-label': t('all')}"></select>
-            <button type="button" class="btn" data-bind="click: refresh, disable: busy() || opening() || marking(), text: t('refresh')"></button>
-            <button type="button" class="btn unified-inbox-read-all" data-bind="click: markAllRead, disable: busy() || opening() || marking() || !visibleItems().length, text: t('markAll')"></button>
+            <select data-bind="options: filterOptions, optionsText: 'label', optionsValue: 'email', value: filter, disable: marking() || opening() || saving(), attr: {'aria-label': t('all')}"></select>
+            <button type="button" class="btn" data-bind="click: refresh, disable: busy() || opening() || marking() || saving(), text: t('refresh')"></button>
+            <button type="button" class="btn unified-inbox-read-all" data-bind="click: markAllRead, disable: busy() || opening() || marking() || saving() || !visibleItems().length, text: t('markAll')"></button>
             <span role="status" data-bind="visible: busy, text: t('loading')"></span>
             <span role="status" data-bind="visible: opening, text: t('opening')"></span>
             <span role="status" data-bind="visible: marking, text: t('marking')"></span>
         </div>
+        <details class="unified-inbox-selection">
+            <summary data-bind="text: t('included')"></summary>
+            <p data-bind="text: t('selectionHelp')"></p>
+            <div data-bind="foreach: availableAccounts">
+                <label class="unified-inbox-choice">
+                    <input type="checkbox" data-bind="checked: selected, disable: $root.busy() || $root.marking() || $root.opening() || $root.saving()">
+                    <span data-bind="text: email"></span>
+                </label>
+            </div>
+            <button type="button" class="btn unified-inbox-save" data-bind="click: saveSelection, disable: busy() || marking() || opening() || saving() || !availableAccounts().length, text: t('save')"></button>
+            <span role="status" data-bind="visible: saving, text: t('saving')"></span>
+        </details>
+        <p data-bind="visible: !accounts().length &amp;&amp; !busy() &amp;&amp; availableAccounts().length, text: t('selectionEmpty')"></p>
         <details class="unified-inbox-status" open>
             <summary data-bind="text: t('all')"></summary>
             <div data-bind="foreach: accounts">
@@ -30,7 +43,7 @@
         <p data-bind="visible: !visibleItems().length &amp;&amp; !busy(), text: t('empty')"></p>
         <div class="unified-inbox-items" data-bind="foreach: visibleItems">
             <article class="unified-inbox-item">
-                <button type="button" class="unified-inbox-open" data-bind="click: $root.openItem, disable: $root.opening() || $root.marking()">
+                <button type="button" class="unified-inbox-open" data-bind="click: $root.openItem, disable: $root.opening() || $root.marking() || $root.saving()">
                 <span class="unified-inbox-meta">
                     <strong data-bind="text: account, style: {borderColor: $root.color(account)}"></strong>
                     <time data-bind="text: $root.date(date)"></time>
@@ -38,7 +51,7 @@
                 <strong class="unified-inbox-subject" data-bind="text: subject || $root.t('subject')"></strong>
                 <span class="unified-inbox-sender" data-bind="text: sender"></span>
                 </button>
-                <button type="button" class="btn unified-inbox-read" data-bind="click: $root.markRead, disable: $root.opening() || $root.marking(), text: $root.t('markRead')"></button>
+                <button type="button" class="btn unified-inbox-read" data-bind="click: $root.markRead, disable: $root.opening() || $root.marking() || $root.saving(), text: $root.t('markRead')"></button>
             </article>
         </div>
     </div>

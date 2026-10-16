@@ -1,5 +1,21 @@
 # Verification — 2026-10-15, version 0.1.4
 
+## Account selection — version 0.4.0, 2026-10-16
+
+- PHP tests cover the default selection, main-account exclusion, empty selection,
+  isolation between users, linked-account switching, newly linked accounts,
+  invalid/unauthorized writes and storage failures.
+- JavaScript tests verify that excluded accounts are never queried, saving resets
+  the display filter, empty selections persist, failures preserve the current
+  view and reopening during a pending save reloads the confirmed preference.
+- Synthetic Chromium tests exercise the actual checkboxes and save button,
+  including an empty selection and mobile layout. Demo captures contain only
+  fictitious metadata.
+- Live Chromium verification through loopback confirms saving from the UI,
+  persistence after reload and switching to an additional account, empty selection
+  and rejection of unauthorized accounts. Original selection and active account
+  are restored after the test. No messages are marked by the selection test.
+
 ## Mark all as read — version 0.3.0
 
 - JavaScript tests cover cancellation without writes, account-filter scope,

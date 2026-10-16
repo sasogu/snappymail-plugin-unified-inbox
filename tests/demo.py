@@ -18,10 +18,16 @@ with sync_playwright() as p:
         }
     }''', (Path(__file__).resolve().parents[1] / 'templates/PopupsUnifiedInbox.html').read_text())
     page.evaluate('''() => {
+        let selected = null;
         rl.app.Remote.request = (action, callback, params) => {
             const accounts = ['personal@example.invalid', 'project@example.invalid', 'school@example.invalid'];
+            if (action === 'PluginUnifiedInboxSaveAccounts') {
+                selected = JSON.parse(params.selected);
+                setTimeout(()=>callback(0,{Result:{ok:true}}), 20);
+                return;
+            }
             const result = action === 'PluginUnifiedInboxList' ? {
-                ok:true, accounts, active:accounts[0], options:{days:14,limit:50}
+                ok:true, accounts, selected:selected || accounts, active:accounts[0], options:{days:14,limit:50}
             } : {
                 ok:true, cached:false,total:1,updated:Math.floor(Date.now()/1000),items:[{
                     account:params.email,folder:'INBOX',uid:1,uidvalidity:1,message_id:'<demo@example.invalid>',
@@ -53,6 +59,24 @@ with sync_playwright() as p:
     page.set_viewport_size({'width': 390, 'height': 844})
     page.wait_for_function("document.querySelector('.unified-inbox-panel').getBoundingClientRect().width <= 390")
     page.locator('.unified-inbox-panel').screenshot(path=str(output / 'demo-mobile.png'))
+    page.locator('.unified-inbox-selection summary').click()
+    choices = page.locator('.unified-inbox-choice input')
+    choices.nth(0).uncheck()
+    choices.nth(2).uncheck()
+    page.locator('.unified-inbox-save').click()
+    page.wait_for_function("document.querySelectorAll('.unified-inbox-item').length === 1 && !ko.dataFor(document.querySelector('.unified-inbox-panel')).busy()")
+    assert choices.nth(0).is_checked() is False
+    assert choices.nth(1).is_checked()
+    assert page.locator('.unified-inbox-controls select option').count() == 2
+    page.locator('.unified-inbox-panel').screenshot(path=str(output / 'demo-selection-mobile.png'))
+    choices.nth(1).uncheck()
+    page.locator('.unified-inbox-save').click()
+    page.wait_for_function("ko.dataFor(document.querySelector('.unified-inbox-panel')).accounts().length === 0 && !ko.dataFor(document.querySelector('.unified-inbox-panel')).busy()")
+    assert page.locator('.unified-inbox-read-all').is_disabled()
+    for i in range(3):
+        choices.nth(i).check()
+    page.locator('.unified-inbox-save').click()
+    page.wait_for_function("document.querySelectorAll('.unified-inbox-item').length === 3")
     before = page.url
     page.locator('.unified-inbox-read').first.click()
     page.wait_for_function("document.querySelectorAll('.unified-inbox-item').length === 2")
@@ -73,4 +97,4 @@ with sync_playwright() as p:
     assert page.locator('.unified-inbox-read-all').is_disabled()
     assert page.url == before
     browser.close()
-    print('OK: synthetic screenshots, individual/bulk read, cancellation and account filter; no real-mail changes')
+    print('OK: synthetic screenshots, saved/empty account selection, individual/bulk read, cancellation and account filter; no real-mail changes')

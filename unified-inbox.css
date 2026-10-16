@@ -24,3 +24,8 @@
     .unified-inbox-account { display: grid; }
     .unified-inbox-meta { display: grid; }
 }
+
+.unified-inbox-selection { margin: 16px 0; }
+.unified-inbox-choice { display: flex; align-items: baseline; gap: 8px; margin: 8px 0; overflow-wrap: anywhere; }
+.unified-inbox-choice span { min-width: 0; }
+.unified-inbox-choice input { flex-shrink: 0; }
