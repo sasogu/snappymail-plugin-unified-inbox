@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.2 — 2026-10-16
+
+- Review Catalan grammar and terminology: imperative button labels, desar for
+  saving, consistent vós instructions and clearer message descriptions.
+- Use a singular confirmation for a single visible message; avoid ungrammatical
+  number agreement in Catalan limit/progress labels.
+- Add synthetic Catalan previews and a cancellation test for the singular scope.
+
 ## 0.4.1 — 2026-10-16
 
 - Follow SnappyMail's selected interface language instead of the browser's

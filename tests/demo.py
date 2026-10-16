@@ -63,8 +63,15 @@ with sync_playwright() as p:
     page.evaluate("() => {document.documentElement.lang='ca';}")
     page.get_by_role('heading',name='Safata conjunta',exact=True).wait_for()
     assert page.locator('#unified-demo-launcher').text_content() == 'Safata conjunta'
+    page.evaluate("async () => {await ko.dataFor(document.querySelector('.unified-inbox-panel')).load(false);}")
+    ca_output = Path(__file__).resolve().parents[1] / 'docs'
+    page.locator('.unified-inbox-panel').screenshot(path=str(ca_output / 'demo-ca-desktop.png'))
+    page.set_viewport_size({'width':390,'height':844})
+    page.locator('.unified-inbox-panel').screenshot(path=str(ca_output / 'demo-ca-mobile.png'))
+    page.set_viewport_size({'width':1280,'height':900})
     page.evaluate("() => {document.documentElement.lang='es';}")
     page.get_by_role('heading',name='Bandeja conjunta',exact=True).wait_for()
+    page.evaluate("async () => {await ko.dataFor(document.querySelector('.unified-inbox-panel')).load(false);}")
     output = Path(__file__).resolve().parents[1] / 'docs'
     output.mkdir(exist_ok=True)
     page.locator('.unified-inbox-panel').screenshot(path=str(output / 'demo-desktop.png'))

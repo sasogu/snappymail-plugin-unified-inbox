@@ -1,5 +1,13 @@
 # Verification — 2026-10-15, version 0.1.4
 
+## Linguistic review — version 0.4.2
+
+- Catalan commands, instructions and terminology follow Softcatalà style.
+- A single visible message has its own confirmation; cancellation performs no
+  writes. Date/count limits and progress labels remain grammatical for 1.
+- PHP/JavaScript checks and synthetic browser coverage pass. Catalan
+  desktop/mobile previews contain only fictitious metadata.
+
 ## Selected interface language — version 0.4.1
 
 - Unit and synthetic browser tests verify that the selected UI language overrides

@@ -79,6 +79,17 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 10));
     assert.equal(panel.marking(), false);
     console.log('OK: mark read removes only the confirmed row; failure preserves the row and active account');
 
+    context.document.documentElement.lang='ca'; languageChanged();
+    let singularConfirmation;
+    context.window.confirm = text => {singularConfirmation=text; return false;};
+    await panel.markAll();
+    assert.ok(singularConfirmation.includes('el missatge visible'));
+    assert.ok(!singularConfirmation.includes('els 1 missatges'));
+    assert.equal(panel.items().length,1);
+    context.document.documentElement.lang='es'; languageChanged();
+    context.window.confirm = () => false;
+    console.log('OK: singular Catalan confirmation preserves the single visible message on cancellation');
+
     const first = {account:'a',date:3,uid:1}, second = {account:'a',date:2,uid:2}, other = {account:'c',date:1,uid:3};
     panel.items([first, second, other]); panel.filter('a');
     const writes = [];

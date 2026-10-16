@@ -152,3 +152,5 @@ fuera del código con permisos restrictivos. No publiques su contenido.
 ![Mobile demo — synthetic data](docs/demo-mobile.png)
 
 ![Included accounts — synthetic mobile demo](docs/demo-selection-mobile.png)
+
+![Catalan demo — synthetic metadata](docs/demo-ca-mobile.png)

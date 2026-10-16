@@ -18,6 +18,7 @@
             markRead: 'Marcar como leído', marking: 'Marcando como leído…', marked: 'Correo marcado como leído.',
             markError: 'No se pudo marcar como leído. Actualiza la bandeja y vuelve a intentarlo.',
             markAll: 'Marcar todo como leído',
+            confirmOne: '¿Marcar como leído el mensaje visible de «{scope}»? Solo se incluye el mensaje de esta vista.',
             confirmAll: '¿Marcar como leídos los {count} mensajes visibles de «{scope}»? Solo se incluyen los mensajes de esta vista.',
             bulkProgress: 'Procesados {done} de {total}…',
             bulkDone: 'Marcados como leídos: {success}. Sin marcar: {failed}.'
@@ -37,27 +38,29 @@
             markRead: 'Mark as read', marking: 'Marking as read…', marked: 'Message marked as read.',
             markError: 'Could not mark as read. Refresh the inbox and try again.',
             markAll: 'Mark all as read',
+            confirmOne: 'Mark the visible message in “{scope}” as read? Only the message in this view is included.',
             confirmAll: 'Mark the {count} visible messages in “{scope}” as read? Only messages in this view are included.',
             bulkProgress: 'Processed {done} of {total}…',
             bulkDone: 'Marked as read: {success}. Not marked: {failed}.'
         },
         ca: {
-            included: 'Comptes inclosos', save: 'Guardar selecció', saving: 'Guardant…',
-            selectionHelp: 'Tria els comptes que vols reunir. Els comptes nous s’inclouen per defecte.',
-            selectionEmpty: 'No hi ha comptes inclosos. Tria’n algun en «Comptes inclosos».',
-            saveError: 'No s’ha pogut guardar la selecció. Torna-ho a provar.',
-            title: 'Safata conjunta', subtitle: 'No llegits recents dels teus comptes seleccionats',
-            all: 'Tots els comptes', refresh: 'Actualitzar', close: 'Tancar', loading: 'Consultant…',
-            error: 'No s’ha pogut consultar. Comprova la connexió i torna-ho a provar.',
-            openError: 'No s’ha pogut obrir el correu. Pot haver-se mogut o eliminat. Actualitza la safata.',
+            included: 'Comptes inclosos', save: 'Desa la selecció', saving: 'S’està desant…',
+            selectionHelp: 'Trieu els comptes que voleu reunir. Els comptes nous s’inclouen per defecte.',
+            selectionEmpty: 'No hi ha comptes inclosos. Trieu-ne algun a «Comptes inclosos».',
+            saveError: 'No s’ha pogut desar la selecció. Torneu-ho a provar.',
+            title: 'Safata conjunta', subtitle: 'Missatges no llegits recents dels comptes seleccionats',
+            all: 'Tots els comptes', refresh: 'Actualitza', close: 'Tanca', loading: 'S’està consultant…',
+            error: 'No s’ha pogut consultar el correu. Comproveu la connexió i torneu-ho a provar.',
+            openError: 'No s’ha pogut obrir el missatge. Pot ser que s’hagi mogut o eliminat. Actualitzeu la safata.',
             empty: 'No hi ha missatges en aquesta vista.', subject: '(Sense assumpte)', cached: 'En memòria cau',
-            limits: 'Últims {days} dies · fins a {limit} missatges per compte · només INBOX',
-            ready: 'Preparat', more: 'Hi ha més missatges que el límit mostrat.', opening: 'Obrint correu…',
-            markRead: 'Marcar com a llegit', marking: 'Marcant com a llegit…', marked: 'Correu marcat com a llegit.',
-            markError: 'No s’ha pogut marcar com a llegit. Actualitza la safata i torna-ho a provar.',
-            markAll: 'Marcar-ho tot com a llegit',
-            confirmAll: 'Vols marcar com a llegits els {count} missatges visibles de «{scope}»? Només s’inclouen els missatges d’aquesta vista.',
-            bulkProgress: 'Processats {done} de {total}…',
+            limits: 'Antiguitat màxima en dies: {days} · límit de missatges per compte: {limit} · només INBOX',
+            ready: 'A punt', more: 'Hi ha més missatges que el límit mostrat.', opening: 'S’està obrint el missatge…',
+            markRead: 'Marca com a llegit', marking: 'S’està marcant com a llegit…', marked: 'Correu marcat com a llegit.',
+            markError: 'No s’ha pogut marcar com a llegit. Actualitzeu la safata i torneu-ho a provar.',
+            markAll: 'Marca-ho tot com a llegit',
+            confirmOne: 'Voleu marcar com a llegit el missatge visible de «{scope}»? Només s’inclou el missatge d’aquesta vista.',
+            confirmAll: 'Voleu marcar com a llegits els {count} missatges visibles de «{scope}»? Només s’inclouen els missatges d’aquesta vista.',
+            bulkProgress: 'Progrés: {done} de {total}…',
             bulkDone: 'Marcats com a llegits: {success}. Sense marcar: {failed}.'
         }
     };
@@ -190,7 +193,7 @@
         async markAll() {
             if (this.marking() || this.opening() || this.busy() || this.saving()) return;
             const items = this.visibleItems().slice();
-            if (!items.length || !window.confirm(t('confirmAll')
+            if (!items.length || !window.confirm(t(items.length === 1 ? 'confirmOne' : 'confirmAll')
                 .replace('{count}', items.length).replace('{scope}', this.filter() || t('all')))) return;
             const generation = this.generation;
             let next = 0, success = 0, failed = 0;

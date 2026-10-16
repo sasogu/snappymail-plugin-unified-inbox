@@ -7,7 +7,7 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
 {
     public const NAME = 'Unified Inbox';
     public const AUTHOR = 'Samuel Soriano';
-    public const VERSION = '0.4.1';
+    public const VERSION = '0.4.2';
     public const RELEASE = '2026-10-16';
     public const REQUIRED = '2.38.2';
     public const LICENSE = 'AGPL-3.0';
