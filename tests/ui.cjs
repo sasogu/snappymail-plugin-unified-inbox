@@ -61,6 +61,8 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 10));
     panel.filter('a');
     assert.equal(panel.visibleItems().length, 1);
     assert.equal(panel.busy(), false);
+    assert.equal(panel.statusSummary(), 'Actualizado · 1 con error');
+    assert.equal(panel.anyFailed(), true);
     console.log('OK: partial failures, progressive merge, sorting and account filter');
 
     let marked;

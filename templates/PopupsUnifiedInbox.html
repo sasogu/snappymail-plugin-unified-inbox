@@ -29,8 +29,8 @@
             <span role="status" data-bind="visible: saving, text: t('saving')"></span>
         </details>
         <p data-bind="visible: !accounts().length &amp;&amp; !busy() &amp;&amp; availableAccounts().length, text: t('selectionEmpty')"></p>
-        <details class="unified-inbox-status" open>
-            <summary data-bind="text: t('all')"></summary>
+        <details class="unified-inbox-status">
+            <summary><span data-bind="text: t('all')"></span> <span class="unified-inbox-summary" role="status" data-bind="text: statusSummary, css: {'unified-inbox-failed': anyFailed}"></span></summary>
             <div data-bind="foreach: accounts">
                 <div class="unified-inbox-account" data-bind="css: {'unified-inbox-failed': failed}">
                     <strong data-bind="text: email, style: {borderColor: $root.color(email)}"></strong>

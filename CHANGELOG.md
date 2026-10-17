@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3 — 2026-10-17
+
+- Collapse **All accounts** by default so the message list is visible right away
+  with many included accounts (suggestion from discussion #1693).
+- Show a compact refresh summary beside the heading: progress while refreshing,
+  then refreshed, accounts over the display limit or failed accounts.
+
 ## 0.4.2 — 2026-10-16
 
 - Review Catalan grammar and terminology: imperative button labels, desar for

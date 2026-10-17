@@ -4,6 +4,9 @@
     if (!window.rl || rl.adminArea()) return;
     const strings = {
         es: {
+            refreshing: 'Actualizando… {done} de {total}', refreshed: 'Actualizado',
+            refreshedLimit: 'Actualizado · algunas cuentas superan el límite',
+            refreshedErrors: 'Actualizado · {count} con error',
             included: 'Cuentas incluidas', save: 'Guardar selección', saving: 'Guardando…',
             selectionHelp: 'Elige las cuentas que quieres reunir. Las cuentas nuevas se incluyen por defecto.',
             selectionEmpty: 'No hay cuentas incluidas. Selecciona alguna en «Cuentas incluidas».',
@@ -24,6 +27,9 @@
             bulkDone: 'Marcados como leídos: {success}. Sin marcar: {failed}.'
         },
         en: {
+            refreshing: 'Refreshing… {done} of {total}', refreshed: 'Refreshed',
+            refreshedLimit: 'Refreshed · some accounts exceed the limit',
+            refreshedErrors: 'Refreshed · {count} failed',
             included: 'Included accounts', save: 'Save selection', saving: 'Saving…',
             selectionHelp: 'Choose the accounts to include. Newly linked accounts are included by default.',
             selectionEmpty: 'No accounts included. Select some under “Included accounts”.',
@@ -44,6 +50,9 @@
             bulkDone: 'Marked as read: {success}. Not marked: {failed}.'
         },
         ca: {
+            refreshing: 'S’està actualitzant… {done} de {total}', refreshed: 'Actualitzat',
+            refreshedLimit: 'Actualitzat · alguns comptes superen el límit',
+            refreshedErrors: 'Actualitzat · comptes amb error: {count}',
             included: 'Comptes inclosos', save: 'Desa la selecció', saving: 'S’està desant…',
             selectionHelp: 'Trieu els comptes que voleu reunir. Els comptes nous s’inclouen per defecte.',
             selectionEmpty: 'No hi ha comptes inclosos. Trieu-ne algun a «Comptes inclosos».',
@@ -109,6 +118,17 @@
                 .sort((a, b) => b.date - a.date || a.account.localeCompare(b.account) || b.uid - a.uid));
             this.filterOptions = ko.computed(() => [{email: '', label: t('all')}]
                 .concat(this.accounts().map(account => ({email: account.email, label: account.email}))));
+            this.anyFailed = ko.computed(() => this.accounts().some(row => row.failed()));
+            // Compact progress beside the collapsed account list, so messages stay in view.
+            this.statusSummary = ko.computed(() => {
+                const accounts = this.accounts();
+                const done = accounts.filter(row => row.done()).length;
+                if (!accounts.length) return '';
+                if (done < accounts.length) return t('refreshing').replace('{done}', done).replace('{total}', accounts.length);
+                const failed = accounts.filter(row => row.failed()).length;
+                if (failed) return t('refreshedErrors').replace('{count}', failed);
+                return t(accounts.some(row => row.truncated()) ? 'refreshedLimit' : 'refreshed');
+            });
             this.refresh = () => this.load(true);
             this.openItem = item => this.open(item);
             this.markRead = item => this.mark(item);
@@ -152,7 +172,7 @@
                 this.availableAccounts(result.accounts.map(email => ({email, selected: ko.observable(selected.includes(email))})));
                 const accounts = result.accounts.filter(email => selected.includes(email)).map(email => ({
                     email, status: ko.observable(t('loading')), failed: ko.observable(false),
-                    truncated: ko.observable(false), updated: ko.observable('')
+                    truncated: ko.observable(false), updated: ko.observable(''), done: ko.observable(false)
                 }));
                 this.accounts(accounts);
                 if (this.filter() && !accounts.some(row => row.email === this.filter())) this.filter('');
@@ -167,9 +187,10 @@
                             account.status(`${data.items.length} · ${t(data.cached ? 'cached' : 'ready')}`);
                             account.updated(date(data.updated));
                             account.truncated(data.total > result.options.limit);
+                            account.done(true);
                         } catch (error) {
                             if (generation !== this.generation) return;
-                            account.status(t('error')); account.failed(true);
+                            account.status(t('error')); account.failed(true); account.done(true);
                         }
                     }
                 };

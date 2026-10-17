@@ -7,6 +7,7 @@
 .unified-inbox-controls select { max-width: 100%; }
 .unified-inbox-limits, .unified-inbox-sender, .unified-inbox-account time { opacity: .8; }
 .unified-inbox-status { margin: 16px 0; }
+.unified-inbox-summary { margin-left: 8px; opacity: .8; font-weight: normal; }
 .unified-inbox-account { display: flex; gap: 8px; flex-wrap: wrap; margin: 7px 0; overflow-wrap: anywhere; }
 .unified-inbox-account strong, .unified-inbox-meta strong { border-left: 4px solid; padding-left: 7px; }
 .unified-inbox-failed { color: #bb3535; }
