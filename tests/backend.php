@@ -145,6 +145,7 @@ namespace {
         \MailSo\Imap\ImapClient::$matches = [3, 4];
         $data = $plugin->AccountItems();
         check($data['ok'] && count($data['items']) === 1 && $data['items'][0]['uidvalidity'] === 7, 'read-only metadata excludes concurrently read messages');
+        check($data['older'] === 2 && in_array('UNSEEN BEFORE ' . gmdate('d-M-Y', time() - 14 * 86400), \MailSo\Imap\ImapClient::$operations, true), 'unread mail outside the window is counted, not fetched');
         check($plugin->AccountItems()['cached'], 'per-account cache hit');
         $plugin->params['force'] = 1;
         check(!$plugin->AccountItems()['cached'], 'forced refresh bypasses cache');

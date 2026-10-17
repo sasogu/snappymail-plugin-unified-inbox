@@ -41,6 +41,12 @@ all unread messages. The per-account cap takes the highest UIDs (most recently
 added messages), then orders the displayed results by IMAP INTERNALDATE.
 Dates use the server's IMAP SINCE semantics (calendar-day precision).
 
+**All accounts** is collapsed by default so the message list stays in view; a
+summary beside it shows refresh progress, accounts over the display limit or
+with errors, and how many unread messages are older than the days window. Those
+older messages are only counted (IMAP SEARCH), never fetched or listed. Expand
+the section for per-account details.
+
 Listing uses EXAMINE and metadata FETCH and does not mark mail as read. Opening
 a message follows SnappyMail's configured read behavior. UIDVALIDITY is checked
 before reusing a UID; an exact, unique Message-ID match is the fallback. Moved,

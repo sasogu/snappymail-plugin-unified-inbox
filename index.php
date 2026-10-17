@@ -158,8 +158,11 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
             }
             $data = $this->imap($account, function ($client) use ($account, $options) {
                 $folder = $client->FolderExamine('INBOX');
-                $uids = $client->MessageSearch('UNSEEN SINCE ' . gmdate('d-M-Y', time() - $options['days'] * 86400));
+                $since = gmdate('d-M-Y', time() - $options['days'] * 86400);
+                $uids = $client->MessageSearch('UNSEEN SINCE ' . $since);
                 $total = count($uids);
+                // Count only: unread mail outside the window is reported, never fetched.
+                $older = count($client->MessageSearch('UNSEEN BEFORE ' . $since));
                 // Highest UIDs are the most recently delivered messages in this mailbox.
                 rsort($uids, SORT_NUMERIC);
                 $uids = array_slice($uids, 0, $options['limit']);
@@ -176,7 +179,7 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
                         'message_id' => \MailSo\Base\Utils::Utf8Clear((string)$row->GetFetchEnvelopeValue(9, '')),
                     ];
                 }
-                return ['items' => \UnifiedInbox\Cache::newest($items), 'total' => $total, 'updated' => time()];
+                return ['items' => \UnifiedInbox\Cache::newest($items), 'total' => $total, 'older' => $older, 'updated' => time()];
             });
             $cache->put($key, $data);
             return $data + ['cached' => false];

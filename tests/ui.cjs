@@ -42,7 +42,7 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 10));
     responses = (action, params) => {
         if (action === 'UnifiedInboxList') return {ok:true, active:'a', accounts:['a','b','c'], options:{days:14,limit:50}};
         if (params.email === 'b') throw new Error('offline');
-        return {ok:true,items:[{account:params.email,date:params.email==='a'?10:20,uid:1}],total:1,updated:1};
+        return {ok:true,items:[{account:params.email,date:params.email==='a'?10:20,uid:1}],total:1,older:params.email==='c'?3:0,updated:1};
     };
     view.openUnifiedInbox();
     await wait();
@@ -61,7 +61,7 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 10));
     panel.filter('a');
     assert.equal(panel.visibleItems().length, 1);
     assert.equal(panel.busy(), false);
-    assert.equal(panel.statusSummary(), 'Actualizado · 1 con error');
+    assert.equal(panel.statusSummary(), 'Actualizado · 1 con error · 3 no leídos anteriores a 14 días');
     assert.equal(panel.anyFailed(), true);
     console.log('OK: partial failures, progressive merge, sorting and account filter');
 

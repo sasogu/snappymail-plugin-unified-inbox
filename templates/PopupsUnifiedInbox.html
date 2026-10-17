@@ -37,6 +37,7 @@
                     <span data-bind="text: status"></span>
                     <time data-bind="text: updated"></time>
                     <span data-bind="visible: truncated, text: $root.t('more')"></span>
+                    <span data-bind="visible: older() > 0, text: $root.olderText(older())"></span>
                 </div>
             </div>
         </details>

@@ -6,6 +6,8 @@
   with many included accounts (suggestion from discussion #1693).
 - Show a compact refresh summary beside the heading: progress while refreshing,
   then refreshed, accounts over the display limit or failed accounts.
+- Count unread INBOX messages older than the configured days window (count only,
+  never fetched) and show the total in the summary and per account.
 
 ## 0.4.2 — 2026-10-16
 

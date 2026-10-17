@@ -7,6 +7,7 @@
             refreshing: 'Actualizando… {done} de {total}', refreshed: 'Actualizado',
             refreshedLimit: 'Actualizado · algunas cuentas superan el límite',
             refreshedErrors: 'Actualizado · {count} con error',
+            older: '{count} no leídos anteriores a {days} días',
             included: 'Cuentas incluidas', save: 'Guardar selección', saving: 'Guardando…',
             selectionHelp: 'Elige las cuentas que quieres reunir. Las cuentas nuevas se incluyen por defecto.',
             selectionEmpty: 'No hay cuentas incluidas. Selecciona alguna en «Cuentas incluidas».',
@@ -30,6 +31,7 @@
             refreshing: 'Refreshing… {done} of {total}', refreshed: 'Refreshed',
             refreshedLimit: 'Refreshed · some accounts exceed the limit',
             refreshedErrors: 'Refreshed · {count} failed',
+            older: '{count} unread older than {days} days',
             included: 'Included accounts', save: 'Save selection', saving: 'Saving…',
             selectionHelp: 'Choose the accounts to include. Newly linked accounts are included by default.',
             selectionEmpty: 'No accounts included. Select some under “Included accounts”.',
@@ -53,6 +55,7 @@
             refreshing: 'S’està actualitzant… {done} de {total}', refreshed: 'Actualitzat',
             refreshedLimit: 'Actualitzat · alguns comptes superen el límit',
             refreshedErrors: 'Actualitzat · comptes amb error: {count}',
+            older: 'No llegits de fa més de {days} dies: {count}',
             included: 'Comptes inclosos', save: 'Desa la selecció', saving: 'S’està desant…',
             selectionHelp: 'Trieu els comptes que voleu reunir. Els comptes nous s’inclouen per defecte.',
             selectionEmpty: 'No hi ha comptes inclosos. Trieu-ne algun a «Comptes inclosos».',
@@ -118,6 +121,8 @@
                 .sort((a, b) => b.date - a.date || a.account.localeCompare(b.account) || b.uid - a.uid));
             this.filterOptions = ko.computed(() => [{email: '', label: t('all')}]
                 .concat(this.accounts().map(account => ({email: account.email, label: account.email}))));
+            this.olderText = count => t('older').replace('{count}', count).replace('{days}', this.days);
+            this.days = 0;
             this.anyFailed = ko.computed(() => this.accounts().some(row => row.failed()));
             // Compact progress beside the collapsed account list, so messages stay in view.
             this.statusSummary = ko.computed(() => {
@@ -126,8 +131,10 @@
                 if (!accounts.length) return '';
                 if (done < accounts.length) return t('refreshing').replace('{done}', done).replace('{total}', accounts.length);
                 const failed = accounts.filter(row => row.failed()).length;
-                if (failed) return t('refreshedErrors').replace('{count}', failed);
-                return t(accounts.some(row => row.truncated()) ? 'refreshedLimit' : 'refreshed');
+                const summary = failed ? t('refreshedErrors').replace('{count}', failed)
+                    : t(accounts.some(row => row.truncated()) ? 'refreshedLimit' : 'refreshed');
+                const older = accounts.reduce((sum, row) => sum + row.older(), 0);
+                return older ? `${summary} · ${this.olderText(older)}` : summary;
             });
             this.refresh = () => this.load(true);
             this.openItem = item => this.open(item);
@@ -167,12 +174,12 @@
                 const result = await rpc('UnifiedInboxList');
                 if (generation !== this.generation) return;
                 this.active = result.active;
-                this.limits(t('limits').replace('{days}', result.options.days).replace('{limit}', result.options.limit));
+                this.days = result.options.days; this.limits(t('limits').replace('{days}', result.options.days).replace('{limit}', result.options.limit));
                 const selected = result.selected || result.accounts;
                 this.availableAccounts(result.accounts.map(email => ({email, selected: ko.observable(selected.includes(email))})));
                 const accounts = result.accounts.filter(email => selected.includes(email)).map(email => ({
                     email, status: ko.observable(t('loading')), failed: ko.observable(false),
-                    truncated: ko.observable(false), updated: ko.observable(''), done: ko.observable(false)
+                    truncated: ko.observable(false), updated: ko.observable(''), done: ko.observable(false), older: ko.observable(0)
                 }));
                 this.accounts(accounts);
                 if (this.filter() && !accounts.some(row => row.email === this.filter())) this.filter('');
@@ -187,6 +194,7 @@
                             account.status(`${data.items.length} · ${t(data.cached ? 'cached' : 'ready')}`);
                             account.updated(date(data.updated));
                             account.truncated(data.total > result.options.limit);
+                            account.older(data.older || 0);
                             account.done(true);
                         } catch (error) {
                             if (generation !== this.generation) return;
