@@ -39,14 +39,25 @@ const view = {viewModelTemplateID: 'MailFolderList'};
 handlers['rl-view-model.create']({detail: view});
 const wait = () => new Promise(resolve => setTimeout(resolve, 10));
 (async () => {
+    let listAttempts = 0, offlineAttempts = 0;
     responses = (action, params) => {
-        if (action === 'UnifiedInboxList') return {ok:true, active:'a', accounts:['a','b','c'], options:{days:14,limit:50}};
-        if (params.email === 'b') throw new Error('offline');
+        if (action === 'UnifiedInboxList') {
+            // First attempt fails in transport, as after a dropped background connection.
+            if (++listAttempts === 1) throw new Error('offline');
+            return {ok:true, active:'a', accounts:['a','b','c'], options:{days:14,limit:50}};
+        }
+        if (params.email === 'b') { ++offlineAttempts; throw new Error('offline'); }
         return {ok:true,items:[{account:params.email,date:params.email==='a'?10:20,uid:1}],total:1,older:params.email==='c'?3:0,updated:1};
     };
+    const warn = console.warn; console.warn = () => {};
     view.openUnifiedInbox();
-    await wait();
+    await new Promise(resolve => setTimeout(resolve, 3400));
+    console.warn = warn;
     const panel = Popup.__vm;
+    assert.equal(listAttempts, 2);
+    assert.equal(offlineAttempts, 3);
+    assert.equal(panel.error(), '');
+    console.log('OK: read-only transport failures are retried before reporting an error');
     assert.equal(panel.t('title'),'Bandeja conjunta');
     assert.equal(view.unifiedInboxLabel(),'Bandeja conjunta');
     context.document.documentElement.lang='ca-ES'; languageChanged();

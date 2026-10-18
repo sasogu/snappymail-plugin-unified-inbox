@@ -7,8 +7,8 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
 {
     public const NAME = 'Unified Inbox';
     public const AUTHOR = 'Samuel Soriano';
-    public const VERSION = '0.4.3';
-    public const RELEASE = '2026-10-17';
+    public const VERSION = '0.4.4';
+    public const RELEASE = '2026-10-18';
     public const REQUIRED = '2.38.2';
     public const LICENSE = 'AGPL-3.0';
     public const CATEGORY = 'General';
@@ -93,6 +93,8 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
             return $this->jsonResponse($method, ['ok' => true] + $operation());
         } catch (\Throwable $error) {
             // No upstream error text: it can contain addresses, connection data or credentials.
+            error_log(sprintf('unified-inbox %s failed: %s #%d at %s:%d', $method, get_class($error),
+                (int)$error->getCode(), basename($error->getFile()), $error->getLine()));
             return $this->jsonResponse($method, ['ok' => false, 'error' => 'unavailable']);
         }
     }

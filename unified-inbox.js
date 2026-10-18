@@ -88,14 +88,34 @@
     const t = key => (strings[lang()] || strings.en)[key];
     // SnappyMail tracks timeouts by action, shared by concurrent account requests.
     // Use independent timers so one account cannot cancel another's request.
-    const rpc = (action, params = {}) => new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(t('error'))), 45000);
+    const request = (action, params) => new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(Object.assign(new Error(t('error')), {transport: 'timeout'})), 45000);
         rl.pluginRemoteRequest((error, data) => {
             clearTimeout(timer);
-            if (error || !data?.Result?.ok) reject(new Error(t('error')));
-            else resolve(data.Result);
+            if (error || !data?.Result?.ok) {
+                // Only the numeric/category code: response data can contain addresses.
+                const failure = new Error(t('error'));
+                failure.transport = error ? `code ${error}` : '';
+                reject(failure);
+            } else resolve(data.Result);
         }, action, params, 0);
     });
+    // Read-only actions retry transport failures, e.g. a connection dropped while
+    // the tab was in the background. Server-side refusals are never retried.
+    const readOnly = ['UnifiedInboxList', 'UnifiedInboxAccount', 'UnifiedInboxLocate'];
+    const rpc = async (action, params = {}) => {
+        const attempts = readOnly.includes(action) ? 3 : 1;
+        for (let attempt = 1; ; ++attempt) {
+            try { return await request(action, params); }
+            catch (error) {
+                if (!error.transport || attempt >= attempts || error.transport === 'timeout') {
+                    if (error.transport) console.warn(`Unified inbox: ${action} failed (${error.transport})`);
+                    throw error;
+                }
+                await new Promise(resolve => setTimeout(resolve, 800 * attempt));
+            }
+        }
+    };
     const pendingKey = 'unified-inbox.destination.v1';
     const date = seconds => seconds ? new Date(seconds * 1000).toLocaleString(lang(), {
         dateStyle: 'short', timeStyle: 'short'

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.4 — 2026-10-18
+
+- Retry read-only requests (account list, per-account messages, locate) up to
+  twice after a transport failure, such as a connection dropped while the tab
+  was in the background, instead of showing "Could not load" right away.
+  Server-side refusals and write actions are never retried.
+- Log the failing action, exception class and line on the server (never its
+  message text) and the transport error code in the browser console.
+
 ## 0.4.3 — 2026-10-17
 
 - Collapse **All accounts** by default so the message list is visible right away
