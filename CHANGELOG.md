@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.5 — 2026-10-18
+
+- Opening a message from another account no longer shows the browser's
+  "leave site?" warning: the panel closes and the intentional reload skips
+  SnappyMail's exit prompt.
+
 ## 0.4.4 — 2026-10-18
 
 - Retry read-only requests (account list, per-account messages, locate) up to

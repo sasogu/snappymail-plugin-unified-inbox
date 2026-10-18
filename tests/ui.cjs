@@ -32,7 +32,7 @@ const context = {
     }}), createElement: () => ({setAttribute() {}}) },
     addEventListener: (name, fn) => { handlers[name] = fn; },
     setTimeout, clearTimeout, dispatchEvent() {}, CustomEvent: class {},
-    sessionStorage: { removeItem() {} }
+    sessionStorage: { removeItem() {}, setItem() {} }
 };
 vm.runInNewContext(fs.readFileSync(__dirname + '/../unified-inbox.js', 'utf8'), context);
 const view = {viewModelTemplateID: 'MailFolderList'};
@@ -220,4 +220,18 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 10));
     assert.equal(panel.items().length, 0);
     assert.equal(panel.busy(), false);
     console.log('OK: closing a panel ignores late responses');
+
+    // Opening another account's message closes the panel and skips the exit warning.
+    let switchedTo, routeReloaded = false, closed = false;
+    context.rl.app = {Remote: {request(action, callback, params) { switchedTo = params.Email; callback(0, {Result: true}); }}};
+    context.rl.route = {reload() { routeReloaded = true; }};
+    const unload = {stopped: false, stopImmediatePropagation() { this.stopped = true; }};
+    handlers.beforeunload(unload);
+    assert.equal(unload.stopped, false);
+    const close = panel.close; panel.close = () => { closed = true; close.call(panel); };
+    await panel.open({account: 'b', uid: 1, uidvalidity: 1, message_id: '<x>'});
+    assert.deepEqual([switchedTo, closed, routeReloaded], ['b', true, true]);
+    handlers.beforeunload(unload);
+    assert.equal(unload.stopped, true);
+    console.log('OK: switching account to open a message reloads without the exit warning');
 })().catch(error => {console.error(error); process.exitCode=1;});

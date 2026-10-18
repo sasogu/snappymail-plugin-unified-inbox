@@ -117,6 +117,10 @@
         }
     };
     const pendingKey = 'unified-inbox.destination.v1';
+    // An intentional account switch reloads the page: skip SnappyMail's exit warning.
+    // Registered before the app boots, so it runs before the core capture listener.
+    let switching = false;
+    addEventListener('beforeunload', event => { if (switching) event.stopImmediatePropagation(); }, {capture: true});
     const date = seconds => seconds ? new Date(seconds * 1000).toLocaleString(lang(), {
         dateStyle: 'short', timeStyle: 'short'
     }) : '';
@@ -302,6 +306,9 @@
                             else resolve();
                         }, { Email: item.account });
                     });
+                    // SnappyMail asks before unloading while any popup is visible.
+                    switching = true;
+                    this.close();
                     rl.route.reload();
                 } else {
                     const located = await rpc('UnifiedInboxLocate', target);
