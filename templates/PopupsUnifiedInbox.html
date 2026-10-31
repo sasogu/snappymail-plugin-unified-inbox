@@ -16,6 +16,10 @@
             <span role="status" data-bind="visible: opening, text: t('opening')"></span>
             <span role="status" data-bind="visible: marking, text: t('marking')"></span>
         </div>
+        <label class="unified-inbox-choice unified-inbox-autoopen">
+            <input type="checkbox" data-bind="checked: autoOpen, disable: autoOpenSaving() || busy()">
+            <span data-bind="text: t('autoOpen')"></span>
+        </label>
         <details class="unified-inbox-selection">
             <summary data-bind="text: t('included')"></summary>
             <p data-bind="text: t('selectionHelp')"></p>

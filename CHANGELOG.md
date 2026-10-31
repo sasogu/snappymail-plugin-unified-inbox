@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 — 2026-10-31
+
+- Optional "Open when SnappyMail starts" checkbox in the panel, stored per
+  main user. Opens once per browser tab; admin default is off.
+- Old unread mail re-uploaded to a server (migration, sync-state reset) no
+  longer shows up as recent: messages must have both a recent arrival date
+  (INTERNALDATE) and a recent Date header. The "older unread" count now
+  includes them.
+
 ## 0.4.5 — 2026-10-18
 
 - Opening a message from another account no longer shows the browser's

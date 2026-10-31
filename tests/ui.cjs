@@ -5,8 +5,12 @@ const vm = require('node:vm');
 
 const handlers = {};
 const observable = initial => {
-    let value = initial;
-    function obs(...args) { if (args.length) value = args[0]; return value; }
+    let value = initial; const subscribers = [];
+    function obs(...args) {
+        if (args.length && args[0] !== value) { value = args[0]; subscribers.forEach(fn => fn(value)); }
+        return value;
+    }
+    obs.subscribe = fn => subscribers.push(fn);
     return obs;
 };
 let Popup;
@@ -32,7 +36,7 @@ const context = {
     }}), createElement: () => ({setAttribute() {}}) },
     addEventListener: (name, fn) => { handlers[name] = fn; },
     setTimeout, clearTimeout, dispatchEvent() {}, CustomEvent: class {},
-    sessionStorage: { removeItem() {}, setItem() {} }
+    sessionStorage: { store: {}, getItem(k) { return this.store[k] ?? null; }, removeItem(k) { delete this.store[k]; }, setItem(k, v) { this.store[k] = String(v); } }
 };
 vm.runInNewContext(fs.readFileSync(__dirname + '/../unified-inbox.js', 'utf8'), context);
 const view = {viewModelTemplateID: 'MailFolderList'};
@@ -234,4 +238,37 @@ const wait = () => new Promise(resolve => setTimeout(resolve, 10));
     handlers.beforeunload(unload);
     assert.equal(unload.stopped, true);
     console.log('OK: switching account to open a message reloads without the exit warning');
+
+    // Auto-open: preference loads without saving, user toggle saves, failure reverts.
+    const saved = [];
+    let failPref = false;
+    responses = (action, params) => {
+        if (action === 'UnifiedInboxSaveAutoOpen') { if (failPref) throw new Error('x'); saved.push(params.enabled); return {ok: true}; }
+        if (action === 'UnifiedInboxList') return {ok: true, accounts: ['a'], selected: ['a'], active: 'a', options: {days: 14, limit: 50}, autoopen: true};
+        return {ok: true, items: [], total: 0, older: 0};
+    };
+    Popup.showModal(); await wait();
+    const prefs = Popup.__vm;
+    assert.deepEqual([prefs.autoOpen(), saved], [true, []]);
+    prefs.autoOpen(false); await wait();
+    assert.deepEqual(saved, ['0']);
+    failPref = true; prefs.autoOpen(true); await wait();
+    assert.deepEqual([prefs.autoOpen(), saved, prefs.error() !== ''], [false, ['0'], true]);
+    console.log('OK: auto-open preference loads, saves user changes and reverts on failure');
+
+    // Startup: opens once per tab when enabled, never after a message-opening reload.
+    const startup = async (autoopen, store = {}) => {
+        context.sessionStorage.store = store; Popup.__vm = undefined;
+        responses = action => action === 'UnifiedInboxList'
+            ? {ok: true, accounts: ['a'], selected: ['a'], active: 'a', options: {days: 14, limit: 50}, autoopen}
+            : {ok: true, items: [], total: 0, older: 0};
+        vm.runInNewContext(fs.readFileSync(__dirname + '/../unified-inbox.js', 'utf8'), context);
+        handlers['rl-view-model.create']({detail: view});
+        await handlers['rl-view-model']({detail: {viewModelTemplateID: 'MailMessageList'}}); await wait();
+        return !!Popup.__vm;
+    };
+    assert.equal(await startup(true), true);
+    assert.equal(await startup(false), false);
+    assert.equal(await startup(true, {'unified-inbox.autoopened.v1': '1'}), false);
+    console.log('OK: opens on start only when enabled and only once per tab');
 })().catch(error => {console.error(error); process.exitCode=1;});

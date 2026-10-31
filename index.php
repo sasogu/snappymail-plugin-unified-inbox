@@ -7,8 +7,8 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
 {
     public const NAME = 'Unified Inbox';
     public const AUTHOR = 'Samuel Soriano';
-    public const VERSION = '0.4.5';
-    public const RELEASE = '2026-10-18';
+    public const VERSION = '0.5.0';
+    public const RELEASE = '2026-10-31';
     public const REQUIRED = '2.38.2';
     public const LICENSE = 'AGPL-3.0';
     public const CATEGORY = 'General';
@@ -21,6 +21,7 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
         $this->addTemplate('templates/PopupsUnifiedInbox.html');
         $this->addJsonHook('UnifiedInboxList', 'ListAccounts');
         $this->addJsonHook('UnifiedInboxSaveAccounts', 'SaveAccounts');
+        $this->addJsonHook('UnifiedInboxSaveAutoOpen', 'SaveAutoOpen');
         $this->addJsonHook('UnifiedInboxAccount', 'AccountItems');
         $this->addJsonHook('UnifiedInboxLocate', 'Locate');
         $this->addJsonHook('UnifiedInboxMarkRead', 'MarkRead');
@@ -37,7 +38,18 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
                 ->SetType(\RainLoop\Enumerations\PluginPropertyType::INT)
                 ->SetDefaultValue($default)->SetLabel($label);
         }
+        $properties[] = \RainLoop\Plugins\Property::NewInstance('autoopen')
+            ->SetType(\RainLoop\Enumerations\PluginPropertyType::BOOL)
+            ->SetDefaultValue(false)->SetLabel('Open on start by default (users can change it)');
         return $properties;
+    }
+
+    private function autoOpen($actions, $main): bool
+    {
+        $stored = (string)$actions->StorageProvider()->Get($main,
+            \RainLoop\Providers\Storage\Enumerations\StorageType::CONFIG, 'unified_inbox_autoopen', '');
+        if ($stored === '1' || $stored === '0') return $stored === '1';
+        return (bool)$this->Config()->Get('plugin', 'autoopen', false);
     }
 
     private ?\MailSo\Imap\ImapClient $privateClient = null;
@@ -123,7 +135,8 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
             $excluded = json_decode((string)$stored, true, 512, JSON_THROW_ON_ERROR);
             if (!is_array($excluded) || !array_is_list($excluded)) throw new \RuntimeException('Invalid preferences');
             return ['accounts' => $emails, 'selected' => array_values(array_diff($emails, $excluded)),
-                'active' => $active->Email(), 'options' => $this->options()];
+                'active' => $active->Email(), 'options' => $this->options(),
+                'autoopen' => $this->autoOpen($actions, $main)];
         });
     }
 
@@ -148,6 +161,19 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
         });
     }
 
+    public function SaveAutoOpen()
+    {
+        return $this->result(__FUNCTION__, function () {
+            [$actions, $main] = $this->context();
+            $enabled = (string)$this->jsonParam('enabled', '');
+            if ($enabled !== '1' && $enabled !== '0') throw new \RuntimeException('Invalid preference');
+            if (!$actions->StorageProvider()->Put($main,
+                \RainLoop\Providers\Storage\Enumerations\StorageType::CONFIG, 'unified_inbox_autoopen', $enabled))
+                throw new \RuntimeException('Save failed');
+            return [];
+        });
+    }
+
     public function AccountItems()
     {
         return $this->result(__FUNCTION__, function () {
@@ -161,10 +187,12 @@ class UnifiedInboxPlugin extends \RainLoop\Plugins\AbstractPlugin
             $data = $this->imap($account, function ($client) use ($account, $options) {
                 $folder = $client->FolderExamine('INBOX');
                 $since = gmdate('d-M-Y', time() - $options['days'] * 86400);
-                $uids = $client->MessageSearch('UNSEEN SINCE ' . $since);
+                // Both dates must be recent: INTERNALDATE is reset when old mail is
+                // re-uploaded (migration, sync-state reset), the Date header is not.
+                $uids = $client->MessageSearch('UNSEEN SINCE ' . $since . ' SENTSINCE ' . $since);
                 $total = count($uids);
                 // Count only: unread mail outside the window is reported, never fetched.
-                $older = count($client->MessageSearch('UNSEEN BEFORE ' . $since));
+                $older = max(0, count($client->MessageSearch('UNSEEN')) - $total);
                 // Highest UIDs are the most recently delivered messages in this mailbox.
                 rsort($uids, SORT_NUMERIC);
                 $uids = array_slice($uids, 0, $options['limit']);

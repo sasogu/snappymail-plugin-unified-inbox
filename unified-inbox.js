@@ -25,7 +25,8 @@
             confirmOne: '¿Marcar como leído el mensaje visible de «{scope}»? Solo se incluye el mensaje de esta vista.',
             confirmAll: '¿Marcar como leídos los {count} mensajes visibles de «{scope}»? Solo se incluyen los mensajes de esta vista.',
             bulkProgress: 'Procesados {done} de {total}…',
-            bulkDone: 'Marcados como leídos: {success}. Sin marcar: {failed}.'
+            bulkDone: 'Marcados como leídos: {success}. Sin marcar: {failed}.',
+            autoOpen: 'Abrir al iniciar SnappyMail', autoOpenError: 'No se pudo guardar la preferencia. Vuelve a intentarlo.'
         },
         en: {
             refreshing: 'Refreshing… {done} of {total}', refreshed: 'Refreshed',
@@ -49,7 +50,8 @@
             confirmOne: 'Mark the visible message in “{scope}” as read? Only the message in this view is included.',
             confirmAll: 'Mark the {count} visible messages in “{scope}” as read? Only messages in this view are included.',
             bulkProgress: 'Processed {done} of {total}…',
-            bulkDone: 'Marked as read: {success}. Not marked: {failed}.'
+            bulkDone: 'Marked as read: {success}. Not marked: {failed}.',
+            autoOpen: 'Open when SnappyMail starts', autoOpenError: 'Could not save the preference. Please try again.'
         },
         ca: {
             refreshing: 'S’està actualitzant… {done} de {total}', refreshed: 'Actualitzat',
@@ -73,7 +75,8 @@
             confirmOne: 'Voleu marcar com a llegit el missatge visible de «{scope}»? Només s’inclou el missatge d’aquesta vista.',
             confirmAll: 'Voleu marcar com a llegits els {count} missatges visibles de «{scope}»? Només s’inclouen els missatges d’aquesta vista.',
             bulkProgress: 'Progrés: {done} de {total}…',
-            bulkDone: 'Marcats com a llegits: {success}. Sense marcar: {failed}.'
+            bulkDone: 'Marcats com a llegits: {success}. Sense marcar: {failed}.',
+            autoOpen: 'Obre en iniciar SnappyMail', autoOpenError: 'No s’ha pogut desar la preferència. Torneu-ho a provar.'
         }
     };
     // clientLanguage is the browser preference, not SnappyMail's selected language.
@@ -134,7 +137,8 @@
         constructor() {
             super('UnifiedInbox');
             this.addObservables({ accounts: [], items: [], filter: '', busy: false, opening: false,
-                marking: false, saving: false, availableAccounts: [], notice: '', error: '', limits: '' });
+                marking: false, saving: false, availableAccounts: [], notice: '', error: '', limits: '',
+                autoOpen: false, autoOpenSaving: false });
             this.t = t;
             this.date = date;
             this.color = color;
@@ -165,6 +169,21 @@
             this.markRead = item => this.mark(item);
             this.markAllRead = () => this.markAll();
             this.saveSelection = () => this.saveAccounts();
+            // Only user changes are saved; values set from the server are not.
+            this.syncingAutoOpen = false;
+            this.autoOpen.subscribe(enabled => { if (!this.syncingAutoOpen) this.saveAutoOpen(enabled); });
+        }
+
+        setAutoOpen(enabled) {
+            this.syncingAutoOpen = true;
+            try { this.autoOpen(enabled); } finally { this.syncingAutoOpen = false; }
+        }
+
+        async saveAutoOpen(enabled) {
+            this.autoOpenSaving(true); this.error('');
+            try { await rpc('UnifiedInboxSaveAutoOpen', {enabled: enabled ? '1' : '0'}); }
+            catch (error) { this.setAutoOpen(!enabled); this.error(t('autoOpenError')); }
+            finally { this.autoOpenSaving(false); }
         }
 
         beforeShow() { this.filter(''); this.load(false); }
@@ -198,6 +217,7 @@
                 const result = await rpc('UnifiedInboxList');
                 if (generation !== this.generation) return;
                 this.active = result.active;
+                this.setAutoOpen(!!result.autoopen);
                 this.days = result.options.days; this.limits(t('limits').replace('{days}', result.options.days).replace('{limit}', result.options.limit));
                 const selected = result.selected || result.accounts;
                 this.availableAccounts(result.accounts.map(email => ({email, selected: ko.observable(selected.includes(email))})));
@@ -322,6 +342,18 @@
         }
     }
 
+    // Open once per browser tab: page reloads and account switches do not reopen it.
+    const autoOpenKey = 'unified-inbox.autoopened.v1';
+    const autoOpen = async () => {
+        try {
+            if (sessionStorage.getItem(autoOpenKey)) return;
+            sessionStorage.setItem(autoOpenKey, '1');
+        } catch (error) { return; }
+        try {
+            if ((await rpc('UnifiedInboxList')).autoopen && !UnifiedInboxPopup.__vm?.modalVisible?.()) UnifiedInboxPopup.showModal();
+        } catch (error) { /* The button still opens the panel. */ }
+    };
+
     let resumed = false;
     addEventListener('rl-view-model.create', event => {
         const view = event.detail;
@@ -344,7 +376,8 @@
         let raw;
         try { raw = sessionStorage.getItem(pendingKey); sessionStorage.removeItem(pendingKey); }
         catch (error) { return; }
-        if (!raw) return;
+        if (!raw) { autoOpen(); return; }
+        try { sessionStorage.setItem(autoOpenKey, '1'); } catch (error) { /* ignore */ }
         try {
             const target = JSON.parse(raw);
             if (!target.created || Date.now() - target.created > 120000) return;

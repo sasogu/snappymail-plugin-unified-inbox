@@ -23,6 +23,11 @@ accounts; newly linked accounts are included by default. All accounts are
 included until you save a selection. The account dropdown only filters the
 current list; it does not change the saved selection.
 
+Check **Open when SnappyMail starts** in the panel to show it automatically
+after signing in. It opens once per browser tab, not after reloads or account
+switches. The preference is stored per main user; administrators can change the
+default (off) in the plugin settings.
+
 Use **Mark as read** below a message to mark it in its own account without opening
 it or switching accounts. The row disappears and its displayed account count
 updates only after the server confirms the read flag. On error the row stays
@@ -130,6 +135,11 @@ conserva al cambiar de cuenta o dispositivo. Las cuentas excluidas no se consult
 ni participan en «Marcar todo como leído». Puedes excluir incluso la principal o
 todas las cuentas; las cuentas nuevas se incluyen por defecto. El desplegable de
 cuentas solo filtra la lista actual y no cambia esta selección.
+
+Marca **Abrir al iniciar SnappyMail** en el panel para que se muestre solo al
+entrar. Se abre una vez por pestaña, no al recargar ni al cambiar de cuenta. La
+preferencia se guarda por usuario principal; la administración puede cambiar el
+valor por defecto (desactivado) en los ajustes del plugin.
 
 Cada mensaje incluye **Marcar como leído**: actúa en su propia cuenta sin abrir
 el correo ni cambiar de cuenta. Tras confirmarlo el servidor, desaparece de la

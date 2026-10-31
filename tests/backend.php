@@ -33,6 +33,7 @@ namespace MailSo\Imap {
     class ImapClient {
         public static array $rows = [];
         public static array $matches = [];
+        public static array $searches = [];
         public static array $operations = [];
         public static int $disconnects = 0;
         public static bool $fail = false;
@@ -53,7 +54,7 @@ namespace MailSo\Imap {
             if (self::$fail) throw new \RuntimeException('offline');
             return (object)['UIDVALIDITY' => 7];
         }
-        public function MessageSearch($query) { self::$operations[] = $query; return self::$matches; }
+        public function MessageSearch($query) { self::$operations[] = $query; return self::$searches[$query] ?? self::$matches; }
         public function Fetch($fields, $range, $uid) {
             if (!$uid || array_diff($fields, ['UID', 'FLAGS', 'INTERNALDATE', 'ENVELOPE'])) throw new \RuntimeException('Unsafe fetch');
             return self::$rows;
@@ -130,6 +131,13 @@ namespace {
         check($plugin->SaveAccounts()['ok'] && $plugin->ListAccounts()['selected'] === [], 'empty selection persists');
         $plugin->actions->addAccount = true;
         check($plugin->ListAccounts()['selected'] === ['new@example.invalid'], 'newly linked accounts included by default');
+        check($plugin->ListAccounts()['autoopen'] === false, 'auto-open defaults to the admin setting (off)');
+        $plugin->params = ['enabled' => '1'];
+        check($plugin->SaveAutoOpen()['ok'] && $plugin->ListAccounts()['autoopen'] === true, 'auto-open can be enabled per user');
+        $plugin->params = ['enabled' => 'yes'];
+        check(!$plugin->SaveAutoOpen()['ok'] && $plugin->ListAccounts()['autoopen'] === true, 'invalid auto-open value rejected');
+        $plugin->params = ['enabled' => '0'];
+        check($plugin->SaveAutoOpen()['ok'] && $plugin->ListAccounts()['autoopen'] === false, 'auto-open can be disabled per user');
         $plugin->actions->addAccount = false;
         $plugin->actions->owner = 'main@example.invalid';
         $plugin->params = ['selected' => json_encode($plugin->ListAccounts()['accounts'])];
@@ -143,9 +151,13 @@ namespace {
         $plugin->params = ['email' => 'main@example.invalid'];
         \MailSo\Imap\ImapClient::$rows = [new Row(3, '<a>'), new Row(4, '<b>', ['\\Seen'])];
         \MailSo\Imap\ImapClient::$matches = [3, 4];
+        \MailSo\Imap\ImapClient::$searches = ['UNSEEN' => [1, 2, 3, 4]];
         $data = $plugin->AccountItems();
+        \MailSo\Imap\ImapClient::$searches = [];
         check($data['ok'] && count($data['items']) === 1 && $data['items'][0]['uidvalidity'] === 7, 'read-only metadata excludes concurrently read messages');
-        check($data['older'] === 2 && in_array('UNSEEN BEFORE ' . gmdate('d-M-Y', time() - 14 * 86400), \MailSo\Imap\ImapClient::$operations, true), 'unread mail outside the window is counted, not fetched');
+        $since = gmdate('d-M-Y', time() - 14 * 86400);
+        check(in_array('UNSEEN SINCE ' . $since . ' SENTSINCE ' . $since, \MailSo\Imap\ImapClient::$operations, true), 're-uploaded old mail (recent INTERNALDATE, old Date) stays outside the window');
+        check($data['older'] === 2, 'unread mail outside the window is counted, not fetched');
         check($plugin->AccountItems()['cached'], 'per-account cache hit');
         $plugin->params['force'] = 1;
         check(!$plugin->AccountItems()['cached'], 'forced refresh bypasses cache');
