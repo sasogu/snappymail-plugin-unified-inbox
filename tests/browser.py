@@ -69,7 +69,10 @@ with sync_playwright() as playwright:
         password = Path(os.environ['UNIFIED_INBOX_PASSWORD_FILE']).read_text().splitlines()[0].strip()
         page.locator('input[name=Email]').fill(MAIN)
         page.locator('input[name=Password]').fill(password)
-        page.get_by_role('button', name='Acceder', exact=True).click()
+        # Opening on start would cover the page; this flow opens the panel itself.
+        page.evaluate("sessionStorage.setItem('unified-inbox.autoopened.v1', '1')")
+        # Submit with Enter: the button label depends on the interface language.
+        page.locator('input[name=Password]').press('Enter')
         print('Esperando la interfaz autenticada…', flush=True)
         page.locator('.unified-inbox-launch').wait_for()
         check(True, 'plugin disponible tras iniciar sesión')
@@ -77,6 +80,16 @@ with sync_playwright() as playwright:
             check(page.locator('.seguimiento-launch').count() == 1, 'plugin Seguimiento conservado')
         context = rpc(page, 'UnifiedInboxList')['result']
         check(context['ok'] and len(context['accounts']) >= 2, 'cuentas vinculadas disponibles')
+        check(page.locator('.unified-inbox-panel').count() == 0, 'no se abre de nuevo en la misma pestaña')
+        original_autoopen = bool(context.get('autoopen'))
+        try:
+            for value in ('1', '0'):
+                check(rpc(page, 'UnifiedInboxSaveAutoOpen', {'enabled': value})['result']['ok'] and
+                      rpc(page, 'UnifiedInboxList')['result']['autoopen'] == (value == '1'), f'preferencia de apertura = {value}')
+            check(not rpc(page, 'UnifiedInboxSaveAutoOpen', {'enabled': 'yes'})['result']['ok'], 'rechaza valores de apertura inválidos')
+        finally:
+            check(rpc(page, 'UnifiedInboxSaveAutoOpen', {'enabled': '1' if original_autoopen else '0'})['result']['ok'],
+                  'preferencia de apertura original restaurada')
         if '--selection-only' in sys.argv:
             import json
             original = context['selected']
